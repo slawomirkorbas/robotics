@@ -52,16 +52,16 @@ class Leg
         shield.torqueOn(dx3);
      }
 
-     void setVelocity(double percentage) {
-        shield.setOperatingMode(dx1, OP_VELOCITY);
-        shield.setOperatingMode(dx2, OP_VELOCITY);
-        shield.setOperatingMode(dx1, OP_VELOCITY);
-        shield.setGoalVelocity(dx1, percentage, UNIT_PERCENT);
-        shield.setGoalVelocity(dx2, percentage, UNIT_PERCENT);
-        shield.setGoalVelocity(dx3, percentage, UNIT_PERCENT);
-        shield.setOperatingMode(dx1, OP_POSITION);
-        shield.setOperatingMode(dx2, OP_POSITION);
-        shield.setOperatingMode(dx3, OP_POSITION);
+     /** 
+      *  Velocity can be in range: 0 - 1023. Before sending it to Dynamixel's control table PROFILE_VELOCITY it has to be multiplicated by 0.229 rpm - what is the unit for this value.
+      */
+     boolean setSpeed(float speedPct) {
+          double maxDynamixelSpeed = 1023 * 0.229; //RPM
+          uint32_t newSpeedRpm = speedPct * maxDynamixelSpeed / 100;
+          uint32_t writeTimeout = 100; // ms
+          shield.writeControlTableItem(PROFILE_VELOCITY, dx1, newSpeedRpm, writeTimeout);
+          shield.writeControlTableItem(PROFILE_VELOCITY, dx2, newSpeedRpm, writeTimeout);
+          shield.writeControlTableItem(PROFILE_VELOCITY, dx3, newSpeedRpm, writeTimeout);
      }
   
      void setHome() {
@@ -113,10 +113,10 @@ class Leg
 
 class RobotDog {
   public:
-    Leg leg_fR = Leg(10, 11, 12, 2032-50, 1610-200, 885    ); 
-    Leg leg_fL = Leg(20, 21, 22, 2044-50, 2480+200, 3234   );
-    Leg leg_rL = Leg(41, 40, 42, 2046-40, 2380+250, 1240 - 200 );
-    Leg leg_rR = Leg(31, 30, 32, 2038-40, 1712-250, 2850 + 200  );
+    Leg leg_fR = Leg(10, 11, 12, 2032-20, 1610-200, 885    ); 
+    Leg leg_fL = Leg(20, 21, 22, 2044-20, 2480+200, 3234   );
+    Leg leg_rL = Leg(41, 40, 42, 2046-10, 2380+250, 1240 - 200 );
+    Leg leg_rR = Leg(31, 30, 32, 2038-10, 1712-250, 2850 + 200  );
 
     RobotDog()
     {
@@ -144,12 +144,12 @@ class RobotDog {
       leg_rR.configureInversion(false, true,  false);
     }
 
-    void setVelocity(double percentage)
+    void setSpeed(double percentage)
     {
-        leg_fR.setVelocity(percentage);
-        leg_fL.setVelocity(percentage);
-        leg_rL.setVelocity(percentage);
-        leg_rR.setVelocity(percentage); 
+        leg_fR.setSpeed(percentage);
+        leg_fL.setSpeed(percentage);
+        leg_rL.setSpeed(percentage);
+        leg_rR.setSpeed(percentage); 
     }
 
 
@@ -164,49 +164,81 @@ class RobotDog {
   /** Some fancy moves for warm up **/
    void warmUp() 
    {
-//        delay(2000);
-//        leg_fR.calfUp(250);
-//        leg_fL.calfUp(250);
-//        leg_rL.calfUp(250);
-//        leg_rR.calfUp(250);
-//        leg_fR.tighBack(200);
-//        leg_fL.tighBack(200);
-//        leg_rL.tighBack(200);
-//        leg_rR.tighBack(200);
-//        delay(1000);
-//        
-//        int rep = 4;
-//        while(0 < rep--)
-//        {
-//            delay(500);
-//            leg_fR.hipInside(80);
-//            leg_rR.hipInside(80);
-//            leg_fL.hipOutside(170);
-//            leg_rL.hipOutside(170);
-//            delay(500);  
-//            leg_fR.hipOutside(170);
-//            leg_rR.hipOutside(170);
-//            leg_fL.hipInside(80);
-//            leg_rL.hipInside(80);
-//        }
-//
-//        this->homePosition();
+        this->setSpeed(20.0); // slow down... 
+        delay(1000);
+        this->homePosition();
+        delay(2000);
 
+        // speed up
+        this->setSpeed(80.0);
+        delay(1000);
+
+        
+        // footwork
         int rep = 4;
+        Leg legs[4] = {leg_fR, leg_fL, leg_rR, leg_rL};
+        while(0 < rep--)
+        {  
+            for( int i=0; i<4; i++) {
+                delay(200);
+                legs[i].calfUp(50);
+                legs[i].tighBack(50);
+                delay(200);
+                legs[i].calfDown(50);
+                legs[i].tighForward(50);
+            }
+        }
+            
+        // slow down...    
+        delay(500);
+        this->setSpeed(20.0);
+        delay(500);
+
+        // bujana
+        rep = 6;
+        while(0 < rep--)
+        {
+            delay(500);
+            leg_fR.hipInside(70);
+            leg_rR.hipInside(70);
+            leg_fL.hipOutside(160);
+            leg_rL.hipOutside(160);
+            delay(500);  
+            leg_fR.hipOutside(160);
+            leg_rR.hipOutside(160);
+            leg_fL.hipInside(70);
+            leg_rL.hipInside(70);
+        }
+
+        delay(500);
+        this->homePosition();
+
+        // sits...
+        rep = 4;
         while(0 < rep--)
         {
             delay(1000);
-            leg_fR.calfDown(300);
-            leg_fL.calfDown(300);
-            leg_fR.tighForward(250);
-            leg_fL.tighForward(250);
-            leg_rR.calfUp(350);
-            leg_rL.calfUp(350);
+            leg_fR.calfDown(280);
+            leg_fL.calfDown(280);
+            leg_fR.tighForward(170);
+            leg_fL.tighForward(170);
+            leg_rR.calfUp(280);
+            leg_rL.calfUp(280);
             leg_rR.tighBack(300);
             leg_rL.tighBack(300);
-            delay(1000);  
+            delay(1000);
+            // give hand
+            leg_fR.calfUp(180);
+            leg_fR.tighForward(600);
+            delay(2000);
+            leg_fR.calfDown(280);
+            leg_fR.tighForward(170);
+            delay(2000);  
             this->homePosition();
         }
+
+        delay(500);
+        this->setSpeed(70.0);
    }
 
   /**
@@ -243,32 +275,37 @@ class RobotDog {
 
     void turn(int angle)
     {
-         this->homePosition();
-         delay(2000);       
-         leg_fL.calfDown(100);
-         leg_rR.calfDown(100);
          
-         while(false) 
-         {
-           delay(200);
-           leg_fL.calfDown(100);
-           leg_rR.calfDown(100);
-           leg_fR.hipOutside(100); 
-           
+         //slow down a bit 
+         delay(500);
+         this->setSpeed(50.0);
+         delay(500);       
+         this->homePosition();
+         delay(2000); 
+
+         int rep = 8;
+         while(0 < rep--) {
+           leg_rR.calfDown(200);
+           leg_rR.hipOutside(70);
+           leg_rL.hipOutside(120); 
+           //    
+           leg_fL.calfDown(200);
+           leg_fL.hipOutside(70);
+           leg_fR.hipOutside(120); 
            delay(200); 
-//           leg_fL.calfDown(100);
-//           leg_fR.hipOutside(80); 
-//           
-//           leg_fL.hipOutside(40);
-//           leg_rR.hipInside(80);
-//           leg_rL.hipOutside(80);
-//          
-//           leg_fR.hipInside(40);
-//           leg_fL.hipOutside(40);
-//           leg_rR.hipInside(80);
-//           leg_rL.hipOutside(80);
+           leg_rL.calfDown(120);
+           leg_fR.calfDown(120);
+           delay(200); 
+           leg_rL.hipInside(20);
+           leg_fR.hipInside(20); 
+           //     
+           leg_rR.hipInside(20);
+           leg_rR.calfUp(20);
+           leg_fL.hipInside(20);
+           leg_fL.calfUp(20);
+           delay(200); 
          }
-         //this->homePosition();
+
     }
     
 };
@@ -287,24 +324,16 @@ void setup() {
 
 void loop() 
 {
-    //dog.setVelocity(20.0);
-    dog.homePosition();
-//    delay(2000);
-//    //DEBUG_SERIAL.println(shield.getPresentVelocity(22, UNIT_PERCENT));
-//    //DEBUG_SERIAL.println(shield.setOperatingMode(22, OP_VELOCITY));
-//    shield.setGoalVelocity(22, 20.0, UNIT_PERCENT);
-//    delay(2000);
-//    dog.leg_fL.setVelocity(20.0);
-//    dog.leg_fL.calfDown(200);
-//    delay(2000);
-//    delay(2000);
-    
-    // test turn 
-    //dog.turn(5);
-    
-    //dog.warmUp();
+    delay(1000);
+    dog.turn(0.0);
 
-    delay(2000);
-    dog.walk();
+    
+//    delay(1000);
+//    dog.warmUp();
+//    delay(1000);
+//
+//
+//    delay(2000);
+//    dog.walk();
 
 }
