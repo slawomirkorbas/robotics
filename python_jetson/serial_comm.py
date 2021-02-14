@@ -19,7 +19,7 @@ writeTimeout = 2
 
 while True:
     try:
-        arduino.write("Hello Arduino!".encode()) 
+        arduino.write("Command from Jetson|".encode()) 
         data = arduino.readline()
         if data:
             print(data) # print received data from arduino to console
