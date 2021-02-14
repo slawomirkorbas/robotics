@@ -10,13 +10,15 @@ void setup()
 void loop()
 {
     // waiting for command from Jetson...
-    char messageBuffer[32];
     if (Serial.available() > 0)
     {
-      int size = Serial.readBytesUntil('\n', messageBuffer, 32);
-      delay(2000);
+      //char messageBuffer[32];
+      //int size = Serial.readBytesUntil('\n', messageBuffer, 32);
+      String commandFromJetson = Serial.readString();
       // confirm 
-      String ackMsg = "Hello Jetson! This is what I got from you: " + String(messageBuffer);
-      Serial.println(ackMsg);
+      String ackMsg = "Hello Jetson! This is what I got from you: " + commandFromJetson; // String(messageBuffer);
+      Serial.print(ackMsg);
+      Serial.flush();
     }
+    delay(500);
 }

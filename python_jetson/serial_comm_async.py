@@ -19,11 +19,11 @@ writeTimeout = 2
 
 while True:
     try:
-        arduino.write("Hello Arduino!".encode()) 
-        data = arduino.readline()
+        time.sleep(1)
+        arduino.write('m'.encode()) 
+        data = arduino.read(1) # read just one byte
         if data:
             print(data) # print received data from arduino to console
-        time.sleep(1)
     except Exception as e:
         print(e)
         arduino.close() 
