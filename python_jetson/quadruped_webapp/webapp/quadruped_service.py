@@ -1,4 +1,5 @@
 import serial
+import glob
 
 class QuadrupedService:
 
@@ -28,7 +29,11 @@ class QuadrupedService:
         )
 
     def shut_down(self):
-        self.arduino.close()
+        print('Closing port... ')
+        try:
+            self.arduino.close()
+        except Exception as e:
+            print(e)
 
 
     def send_cmd_2_arduino(self,command):
@@ -45,6 +50,8 @@ class QuadrupedService:
     def homePosition(self):
         return self.send_cmd_2_arduino(self.CMD_STOP)
 
+    def walk(self):
+        return self.send_cmd_2_arduino(self.CMD_WALK_FORWARD)
 
     def swing(self):
         return self.send_cmd_2_arduino(self.CMD_SWING)
