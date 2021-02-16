@@ -12,6 +12,10 @@ Run Flask quadruped_webapp by:
 
 	flask run
 
+Optionally from 'quadruped_webapp' directory run:
+
+	python -m flask run
+
 
 access endpoints:
 

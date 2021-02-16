@@ -1,5 +1,6 @@
 import serial
 import glob
+import time
 
 class QuadrupedService:
 
@@ -21,11 +22,11 @@ class QuadrupedService:
             bytesize = serial.EIGHTBITS, 
             parity = serial.PARITY_NONE,
             stopbits = serial.STOPBITS_ONE, 
-            timeout = 5,
+            timeout = 10,
             xonxoff = False,
             rtscts = False,
             dsrdtr = False,
-            writeTimeout = 2
+            writeTimeout = 10
         )
 
     def shut_down(self):
@@ -40,7 +41,8 @@ class QuadrupedService:
         try:
             print("sending command: " + command + " to Arduino MCU board...")
             self.arduino.write((command + self.CMD_TERMINATOR).encode()) 
-            response = self.arduino.readline().decode()
+            time.sleep(0.2) # givee some time for Arduino...
+            response = self.arduino.read_until(self.CMD_TERMINATOR).decode()
             if response:
                 print("arduino response: " + response)
         except Exception as e:
@@ -55,3 +57,6 @@ class QuadrupedService:
 
     def swing(self):
         return self.send_cmd_2_arduino(self.CMD_SWING)
+
+    def greet(self):
+        return self.send_cmd_2_arduino(self.CMD_GREET)

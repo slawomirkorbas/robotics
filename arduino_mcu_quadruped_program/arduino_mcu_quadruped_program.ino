@@ -134,6 +134,8 @@ class QuadrupedRobot {
     Leg leg_rL = Leg(41, 40, 42, 2046-10, 2380+250, 1240 - 200 );
     Leg leg_rR = Leg(31, 30, 32, 2038-10, 1712-250, 2850 + 200  );
 
+    String currenlyExecutedCommand;
+
     QuadrupedRobot()
     {
       
@@ -144,13 +146,15 @@ class QuadrupedRobot {
     String getNextCommandFromJetson() {
         String commandFromJetson = CMD_EMPTY;
         static const char TERMINATOR = '|';
-        if (Serial.available() > 0)
+        int numberOfBytes = Serial.available();
+        if(numberOfBytes > 0)
         {
           commandFromJetson = Serial.readStringUntil(TERMINATOR);
           // confirm 
-          String ackMsg = "ACK: " + commandFromJetson; // String(messageBuffer);
-          Serial.println(ackMsg);
-          Serial.flush();
+          String ackMsg = "New command: " + commandFromJetson + ". Bytes received: " + String(numberOfBytes) + ". Previous command: " + currenlyExecutedCommand + TERMINATOR; 
+          Serial.print(ackMsg);
+          //Serial.flush();
+          currenlyExecutedCommand = commandFromJetson;
         }
         return commandFromJetson;
     }
@@ -185,19 +189,24 @@ class QuadrupedRobot {
     }
 
 
-    String homePosition()
-    {
+    String stop() {
         this->setSpeed(20.0);
+        this->homePosition();
         String nextCommand = CMD_EMPTY;
         while(nextCommand == CMD_EMPTY) {
+          delay(500);
+          nextCommand = getNextCommandFromJetson();
+        }
+        return nextCommand;
+    }
+
+    void homePosition()
+    {
           leg_fR.setHome();
           leg_fL.setHome();
           leg_rL.setHome();
           leg_rR.setHome();
           delay(500);
-          nextCommand = getNextCommandFromJetson();
-        }
-        return nextCommand;
     }
 
    String footWork() {
@@ -247,41 +256,48 @@ class QuadrupedRobot {
         }
         return nextCommand;
   }
-   
 
-   /** Some fancy moves for warm up **/
-   void warmUp() 
-   {
-        delay(500);
+  String greet() {
+        this->setSpeed(20.0);
         this->homePosition();
+        delay(1000);
+        leg_fR.calfDown(280);
+        leg_fL.calfDown(280);
+        leg_fR.tighForward(170);
+        leg_fL.tighForward(170);
+        leg_rR.calfUp(280);
+        leg_rL.calfUp(280);
+        leg_rR.tighBack(450);
+        leg_rL.tighBack(450);
+        delay(2000);
 
-        // sits...
-        int rep = 4;
-        while(0 < rep--)
+        String nextCommand = CMD_EMPTY;
+        while(nextCommand == CMD_EMPTY)
         {
-            delay(1000);
-            leg_fR.calfDown(280);
-            leg_fL.calfDown(280);
-            leg_fR.tighForward(170);
-            leg_fL.tighForward(170);
-            leg_rR.calfUp(280);
-            leg_rL.calfUp(280);
-            leg_rR.tighBack(300);
-            leg_rL.tighBack(300);
-            delay(1000);
             // give hand
             leg_fR.calfUp(180);
-            leg_fR.tighForward(600);
-            delay(2000);
+            leg_fR.tighForward(400);
+            leg_fL.hipInside(150);
+            leg_rL.hipInside(100);
+            leg_rR.hipOutside(100);
+            delay(1000);
             leg_fR.calfDown(280);
-            leg_fR.tighForward(170);
-            delay(2000);  
-            this->homePosition();
+            leg_fR.tighForward(1000);
+            delay(3000);  
+            leg_fR.calfDown(150);
+            leg_fR.tighForward(0);
+            delay(1000);
+            leg_fL.hipInside(0);
+            leg_rL.hipInside(0);
+            leg_rR.hipOutside(0);
+            delay(1000);
+            nextCommand = getNextCommandFromJetson();
+            
         }
+        return nextCommand;
+  }
+   
 
-        delay(500);
-        this->setSpeed(70.0);
-   }
 
     /** Walks forward. Keep walking till the new command from Jetson arrives...**/
     String walk()
@@ -319,7 +335,7 @@ class QuadrupedRobot {
       return nextCommand;
     }
 
-    /** Turns the robot. Keep tturning till the new command from Jetson arrives...**/
+    /** Turns the robot. Keep turning till the new command from Jetson arrives...**/
     String turn(int angle)
     {
          String nextCommand = CMD_EMPTY;
@@ -364,7 +380,7 @@ QuadrupedRobot quadrupedRobot = QuadrupedRobot();
 
 
 void setup() {
-  Serial.begin(115200);                             // For Uno, Nano, Mini, and Mega, use UART port of DYNAMIXEL Shield to debug.
+  Serial.begin(115200, SERIAL_8N1);                             // For Uno, Nano, Mini, and Mega, use UART port of DYNAMIXEL Shield to debug.
 //  while (!Serial) {
 //    ; // wait for serial port to connect.
 //  }
@@ -378,11 +394,11 @@ String nextCmd = CMD_STOP;
 
 void loop() 
 {
-  if(nextCmd != CMD_EMPTY) 
+  if(!nextCmd.equals(CMD_EMPTY)) 
   {
       if(CMD_STOP.equals(nextCmd))
       {
-          nextCmd = quadrupedRobot.homePosition();
+          nextCmd = quadrupedRobot.stop();
       }
       if(CMD_WALK_FORWARD.equals(nextCmd))
       {
@@ -395,6 +411,14 @@ void loop()
       if(CMD_SWING.equals(nextCmd))
       {
           nextCmd = quadrupedRobot.swing();
+      }
+      if(CMD_GREET.equals(nextCmd))
+      {
+          nextCmd = quadrupedRobot.greet();
+      }
+      if(CMD_WALK_FORWARD.equals(nextCmd))
+      {
+          nextCmd = quadrupedRobot.walk();
       }
   }
 

@@ -27,6 +27,18 @@ def swing(service: QuadrupedService):
     return "Robot is swinging..."
 
 @inject
+@app.route('/greet')
+def greet(service: QuadrupedService):
+    service.greet()
+    return "Robot is greeting..."
+
+@inject
+@app.route('/walk')
+def walk(service: QuadrupedService):
+    service.walk()
+    return "Robot is walking forward..."
+
+@inject
 @app.route('/shutdown')
 def shutdown_server(service: QuadrupedService):
     service.shut_down()
