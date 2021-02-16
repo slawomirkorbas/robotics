@@ -149,8 +149,8 @@ class QuadrupedRobot {
           commandFromJetson = Serial.readStringUntil(TERMINATOR);
           // confirm 
           String ackMsg = "ACK: " + commandFromJetson; // String(messageBuffer);
-          Serial.print(ackMsg);
-          //Serial.flush();
+          Serial.println(ackMsg);
+          Serial.flush();
         }
         return commandFromJetson;
     }
@@ -384,17 +384,17 @@ void loop()
       {
           nextCmd = quadrupedRobot.homePosition();
       }
-      else if(CMD_WALK_FORWARD.equals(nextCmd))
+      if(CMD_WALK_FORWARD.equals(nextCmd))
       {
           nextCmd = quadrupedRobot.walk();
       }
-      else if(CMD_FOOTWORK.equals(nextCmd))
+      if(CMD_FOOTWORK.equals(nextCmd))
       {
           nextCmd = quadrupedRobot.footWork();
       }
-      else if(CMD_SWING.equals(nextCmd))
+      if(CMD_SWING.equals(nextCmd))
       {
-          nextCmd = quadrupedRobot.footWork();
+          nextCmd = quadrupedRobot.swing();
       }
   }
 

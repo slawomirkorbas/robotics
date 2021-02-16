@@ -27,11 +27,15 @@ class QuadrupedService:
             writeTimeout = 2
         )
 
+    def shut_down(self):
+        self.arduino.close()
+
+
     def send_cmd_2_arduino(self,command):
         try:
             print("sending command: " + command + " to Arduino MCU board...")
             self.arduino.write((command + self.CMD_TERMINATOR).encode()) 
-            response = self.arduino.readline()
+            response = self.arduino.readline().decode()
             if response:
                 print("arduino response: " + response)
         except Exception as e:
@@ -40,3 +44,7 @@ class QuadrupedService:
 
     def homePosition(self):
         return self.send_cmd_2_arduino(self.CMD_STOP)
+
+
+    def swing(self):
+        return self.send_cmd_2_arduino(self.CMD_SWING)
