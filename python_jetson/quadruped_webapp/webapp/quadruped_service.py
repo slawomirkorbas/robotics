@@ -60,3 +60,9 @@ class QuadrupedService:
 
     def greet(self):
         return self.send_cmd_2_arduino(self.CMD_GREET)
+
+    def turn_right(self):
+        return self.send_cmd_2_arduino(self.CMD_TURN_RIGHT)
+
+    def turn_left(self):
+        return self.send_cmd_2_arduino(self.CMD_TURN_LEFT)

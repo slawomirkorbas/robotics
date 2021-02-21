@@ -131,8 +131,10 @@ class QuadrupedRobot {
   public:
     Leg leg_fR = Leg(10, 11, 12, 2032-20, 1610-200, 885    ); 
     Leg leg_fL = Leg(20, 21, 22, 2044-20, 2480+200, 3234   );
-    Leg leg_rL = Leg(41, 40, 42, 2046-10, 2380+250, 1240 - 200 );
+    Leg leg_rL = Leg(41, 40, 42, 2046-10, 3340+250, 1240 - 200 );
     Leg leg_rR = Leg(31, 30, 32, 2038-10, 1712-250, 2850 + 200  );
+    
+
 
     String currenlyExecutedCommand;
 
@@ -335,18 +337,21 @@ class QuadrupedRobot {
       return nextCommand;
     }
 
+     String turnLeft(){
+      return "Not implemented yet...";
+     }
+
     /** Turns the robot. Keep turning till the new command from Jetson arrives...**/
-    String turn(int angle)
+    String turnRight()
     {
          String nextCommand = CMD_EMPTY;
          //slow down a bit 
          delay(500);
-         this->setSpeed(50.0);
-         delay(500);       
+         this->setSpeed(40.0);     
          this->homePosition();
-         delay(2000); 
-
-         int rep = 8;
+         delay(1500); 
+         this->setSpeed(90.0);
+         
          while(nextCommand == CMD_EMPTY) {
            leg_rR.calfDown(200);
            leg_rR.hipOutside(70);
@@ -356,16 +361,16 @@ class QuadrupedRobot {
            leg_fL.hipOutside(70);
            leg_fR.hipOutside(120); 
            delay(200); 
-           leg_rL.calfDown(120);
-           leg_fR.calfDown(120);
-           delay(200); 
-           leg_rL.hipInside(20);
-           leg_fR.hipInside(20); 
+           leg_rL.hipInside(100);
+           leg_fR.hipInside(100); 
            //     
-           leg_rR.hipInside(20);
-           leg_rR.calfUp(20);
-           leg_fL.hipInside(20);
-           leg_fL.calfUp(20);
+           leg_rR.hipInside(0);
+           leg_rR.calfUp(200);
+           leg_fL.hipInside(0);
+           leg_fL.calfUp(200);
+           delay(200); 
+           leg_rR.calfUp(0);
+           leg_fL.calfUp(0);
            delay(200); 
 
            nextCommand = getNextCommandFromJetson();
@@ -419,6 +424,14 @@ void loop()
       if(CMD_WALK_FORWARD.equals(nextCmd))
       {
           nextCmd = quadrupedRobot.walk();
+      }
+      if(CMD_TURN_LEFT.equals(nextCmd))
+      {
+          nextCmd = quadrupedRobot.turnLeft();
+      }
+      if(CMD_TURN_RIGHT.equals(nextCmd))
+      {
+          nextCmd = quadrupedRobot.turnRight();
       }
   }
 
