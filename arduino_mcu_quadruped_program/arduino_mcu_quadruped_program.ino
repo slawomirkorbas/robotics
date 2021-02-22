@@ -337,12 +337,10 @@ class QuadrupedRobot {
       return nextCommand;
     }
 
-     String turnLeft(){
-      return "Not implemented yet...";
-     }
+
 
     /** Turns the robot. Keep turning till the new command from Jetson arrives...**/
-    String turnRight()
+    String turn(boolean toRight)
     {
          String nextCommand = CMD_EMPTY;
          //slow down a bit 
@@ -350,28 +348,40 @@ class QuadrupedRobot {
          this->setSpeed(40.0);     
          this->homePosition();
          delay(1500); 
-         this->setSpeed(90.0);
+         this->setSpeed(100.0);
+
+         Leg* rFirst = toRight ? &leg_rR : &leg_rL;
+         Leg* rSec   = toRight ? &leg_rL : &leg_rR;
+         Leg* lFirst = toRight ? &leg_fL : &leg_fR;
+         Leg* lSec   = toRight ? &leg_fR : &leg_fL;
          
          while(nextCommand == CMD_EMPTY) {
-           leg_rR.calfDown(200);
-           leg_rR.hipOutside(70);
-           leg_rL.hipOutside(120); 
-           //    
-           leg_fL.calfDown(200);
-           leg_fL.hipOutside(70);
-           leg_fR.hipOutside(120); 
-           delay(200); 
-           leg_rL.hipInside(100);
-           leg_fR.hipInside(100); 
-           //     
-           leg_rR.hipInside(0);
-           leg_rR.calfUp(200);
-           leg_fL.hipInside(0);
-           leg_fL.calfUp(200);
-           delay(200); 
-           leg_rR.calfUp(0);
-           leg_fL.calfUp(0);
-           delay(200); 
+           rFirst->calfUp(100);
+           rFirst->hipInside(70);
+
+           lFirst->calfUp(100);
+           lFirst->hipInside(70);
+           delay(100); 
+           rFirst->calfDown(0);
+           
+           lFirst->calfDown(0);
+           delay(150); 
+           rFirst->hipOutside(70);
+           rSec->hipOutside(100);
+           rSec->calfUp(100);
+
+           lFirst->hipOutside(70);
+           lSec->hipOutside(100);
+           lSec->calfUp(100);
+           delay(150); 
+           rSec->calfDown(0);
+           rSec->hipInside(0);
+           rFirst->hipInside(0);
+           
+           lSec->calfDown(0);
+           lSec->hipInside(0);
+           lFirst->hipInside(0);
+           delay(150); 
 
            nextCommand = getNextCommandFromJetson();
          }
@@ -427,11 +437,11 @@ void loop()
       }
       if(CMD_TURN_LEFT.equals(nextCmd))
       {
-          nextCmd = quadrupedRobot.turnLeft();
+          nextCmd = quadrupedRobot.turn(false);
       }
       if(CMD_TURN_RIGHT.equals(nextCmd))
       {
-          nextCmd = quadrupedRobot.turnRight();
+          nextCmd = quadrupedRobot.turn(true);
       }
   }
 
