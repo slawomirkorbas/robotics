@@ -41,7 +41,7 @@ class QuadrupedService:
         try:
             print("sending command: " + command + " to Arduino MCU board...")
             self.arduino.write((command + self.CMD_TERMINATOR).encode()) 
-            time.sleep(0.2) # givee some time for Arduino...
+            time.sleep(0.2) # give some time for Arduino...
             response = self.arduino.read_until(self.CMD_TERMINATOR).decode()
             if response:
                 print("arduino response: " + response)

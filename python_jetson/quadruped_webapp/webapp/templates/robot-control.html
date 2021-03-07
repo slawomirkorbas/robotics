@@ -46,26 +46,43 @@
             <div class="container">
                 <h1 class="jumbotron-heading">Robot Control</h1>
                 <p class="lead text-muted">Select command to execute by robot...</p>
-                <div class="row justify-content-center">
-                    
+                <div class="container justify-content-center"> 
+
                     <div class="row">
-                        <div class="col-sm-12">
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-6" type="button" onclick="request('/stop')">Home position</a>
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-6" type="button" onclick="request('/greet')">Greet</a>
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-6" type="button" onclick="request('/swing')">Swing</a>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/stop')">Home position</a>
+                        </div>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/greet')">Greet</a>
+                        </div>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/swing')">Swing</a>
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-sm-12">
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-4" type="button" onclick="request('/walk')">Walk forward</a>
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-4" type="button" onclick="request('/turn_right')">Turn right</a>
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-4" type="button" onclick="request('/turn_left')">Turn left</a>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/walk')">Walk forward</a>
+                        </div>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/turn_right')">Turn right</a>
+                        </div>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/turn_left')">Turn left</a>
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-sm-12">
-                            <a href="#" class="btn btn-danger my-2 btn-lg btn-block mx-5" type="button" onclick="request('/shutdown')">Shutdown app</a>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-success my-2 btn-lg btn-block mx-2" type="button" onclick="startScan()">Scan environment</a>
                         </div>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-secondary my-2 btn-lg btn-block mx-2" type="button" onclick="stopScan()">Stop scan</a>
+                        </div>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-danger my-2 btn-lg btn-block mx-2" type="button" onclick="request('/shutdown')">Shutdown</a>
+                        </div>
+                    </div>
+                    <div class="row" id="lidar-plot" style="width:800px; height:400px; border:1px solid darkgray">
+
                     </div>
             </div>
         </section>
@@ -74,10 +91,12 @@
     <div class="container">
         <!--Copyright-->
         <div class="footer-copyright py-3">
-            © 2020 Copyright: Slawomir Korbas - Cyberdyne Systems
+            © 2020 Copyright: Slawomir Korbas - Cyberdyne Micro Systems
         </div>
     </div>
     <script>
+        var collectLidarSamples;
+
         function request(endpoint) {
             $.ajax({
                 url: endpoint,
@@ -91,6 +110,23 @@
             });
         }
 
+        function startScan() {
+            //collectLidarSamples = setTimeout(getLidarSample, 1000);
+            getLidarSample();
+        }
+
+        function getLidarSample() {
+            $.get( '/get_lidar_sample', function(data) {
+                $("#lidar-plot").html(data);
+            })
+        }
+
+        function stopScan() {
+            //clearTimeout(collectLidarSamples);
+            $.post('stop_scan', function(data) {
+
+            });
+        }
     </script>
     
 </body>

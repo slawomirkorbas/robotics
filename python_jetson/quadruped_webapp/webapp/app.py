@@ -2,6 +2,7 @@ from flask import Flask, request, render_template
 from flask_injector import FlaskInjector
 from injector import inject
 from quadruped_service import QuadrupedService
+from env_mapping_service import EnvMappingService
 from dependencies import configure
 import atexit
 from signal import signal, SIGINT
@@ -9,10 +10,18 @@ from sys import exit
 
 app = Flask(__name__)
 
+
+#class CustomServer(Server):
+#    @inject
+#    def __call__(self, app, *args, **kwargs, service: EnvMappingService):
+#        #Hint: Here you could manipulate app
+#        service.stop()
+#        return Server.__call__(self, app, *args, **kwargs)
+
+
 @app.route('/')
 def home():
     return render_template('robot-control.html')
-
 
 @inject
 @app.route('/stop', methods = ['POST'])
@@ -59,6 +68,24 @@ def shutdown_server(service: QuadrupedService):
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
     return "Service has been shut down."
+
+@inject
+@app.route('/start_lidar', methods = ['POST'])
+def start_lidar(service: EnvMappingService):
+    service.start()
+    return "Lidar started"
+    
+
+@inject
+@app.route('/get_lidar_sample', methods = ['GET'])
+def get_lidar_sample(service: EnvMappingService):
+    return service.scan(10)
+
+@inject
+@app.route('/stop_scan', methods = ['POST'])
+def stop_scan(service: EnvMappingService):
+    service.stop()
+    return "Lidar stopped"
     
 
 
