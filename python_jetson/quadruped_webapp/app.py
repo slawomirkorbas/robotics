@@ -1,12 +1,16 @@
-from flask import Flask, request, render_template 
+#import sys
+#sys.path.append('/services/')
+
+from flask import Flask, request, render_template, jsonify 
 from flask_injector import FlaskInjector
 from injector import inject
-from quadruped_service import QuadrupedService
-from env_mapping_service import EnvMappingService
+from services.quadruped_service import QuadrupedService
+from services.env_mapping_service import EnvMappingService
 from dependencies import configure
 import atexit
 from signal import signal, SIGINT
 from sys import exit
+
 
 app = Flask(__name__)
 
@@ -77,9 +81,9 @@ def start_lidar(service: EnvMappingService):
     
 
 @inject
-@app.route('/get_lidar_sample', methods = ['GET'])
+@app.route('/lidar_sample', methods = ['GET'])
 def get_lidar_sample(service: EnvMappingService):
-    return service.scan(10)
+    return jsonify(service.scan())
 
 @inject
 @app.route('/stop_scan', methods = ['POST'])
