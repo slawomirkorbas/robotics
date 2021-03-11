@@ -10,17 +10,11 @@ from dependencies import configure
 import atexit
 from signal import signal, SIGINT
 from sys import exit
+from flask_socketio import SocketIO, emit
 
 
 app = Flask(__name__)
-
-
-#class CustomServer(Server):
-#    @inject
-#    def __call__(self, app, *args, **kwargs, service: EnvMappingService):
-#        #Hint: Here you could manipulate app
-#        service.stop()
-#        return Server.__call__(self, app, *args, **kwargs)
+socketio = SocketIO(app)
 
 
 @app.route('/')
@@ -76,9 +70,13 @@ def shutdown_server(service: QuadrupedService):
 @inject
 @app.route('/start_lidar', methods = ['POST'])
 def start_lidar(service: EnvMappingService):
-    service.start()
+    service.start_scanning(lidar_scan_ready_callback)
     return "Lidar started"
     
+
+def lidar_scan_ready_callback(angle2dist):
+    # Send the data in a websocket event
+    socketio.emit('lidar_scan_ready', {'lidarSamples': angle2dist })
 
 @inject
 @app.route('/lidar_sample', methods = ['GET'])
@@ -88,10 +86,18 @@ def get_lidar_sample(service: EnvMappingService):
 @inject
 @app.route('/stop_scan', methods = ['POST'])
 def stop_scan(service: EnvMappingService):
-    service.stop()
+    service.stop_scanning()
     return "Lidar stopped"
     
-
+@socketio.on('test event')
+def test_event(msg):
+  print (msg['data'])
+@socketio.on('connect')
+def on_connect():
+  emit('connect_confirm',{'status':'CONNECTED'})
+@socketio.on('disconnect')
+def on_connect():
+  print ('Client disconnected!')
 
 # Setup Flask Injector, this has to happen AFTER routes are added
 FlaskInjector(app=app, modules=[configure])
