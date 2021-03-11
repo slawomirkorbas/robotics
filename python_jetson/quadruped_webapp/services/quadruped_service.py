@@ -1,6 +1,8 @@
 import serial
 import glob
 import time
+import RPi.GPIO as GPIO
+
 
 class QuadrupedService:
 
@@ -28,6 +30,13 @@ class QuadrupedService:
             dsrdtr = False,
             writeTimeout = 10
         )
+
+        #setup GPIO LED light
+        self.led_control_pin = 16
+        self.led_vcc_pin = 18
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.led_control_pin, GPIO.OUT) #led control (ON/OFF)
+        GPIO.setup(self.led_vcc_pin, GPIO.OUT) #led Vcc (5V)
 
     def shut_down(self):
         print('Closing port... ')
@@ -66,3 +75,17 @@ class QuadrupedService:
 
     def turn_left(self):
         return self.send_cmd_2_arduino(self.CMD_TURN_LEFT)
+    
+    def blink_light(self):
+        try:
+            GPIO.output(self.led_vcc_pin, GPIO.HIGH)
+            curr_state = GPIO.HIGH
+            for i in range(10):
+                GPIO.output(self.led_control_pin, curr_state)
+                time.sleep(0.3)
+                curr_state ^= GPIO.HIGH
+        finally:
+            GPIO.output(self.led_vcc_pin, GPIO.LOW)
+            GPIO.output(self.led_control_pin, GPIO.LOW)
+            #GPIO.cleanup()
+

@@ -46,6 +46,12 @@ def walk(service: QuadrupedService):
     return "Robot is walking forward..."
 
 @inject
+@app.route('/light_test', methods = ['POST'])
+def light_test(service: QuadrupedService):
+    service.blink_light()
+    return "Light will be blinking for 5 sec"
+
+@inject
 @app.route('/turn_right', methods = ['POST'])
 def turn_right(service: QuadrupedService):
     service.turn_right()

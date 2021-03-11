@@ -10,6 +10,15 @@
   #define DEBUG_SERIAL Serial
 #endif
 
+/**
+ * In case of problems with port access on Ubuntu (JETSON NANO):
+ * ls -l /dev/ttyACM*, this will show the group that has access to the port.
+ * THEN:
+ * sudo adduser YourUserName GroupToJoin  Will fix things   (the group may be called eg: dialout)
+ * 
+ * ALSO call: sudo chmod a+rw /dev/ttyACM0
+ */
+
 
 const float DXL_PROTOCOL_VERSION = 2.0;
 
