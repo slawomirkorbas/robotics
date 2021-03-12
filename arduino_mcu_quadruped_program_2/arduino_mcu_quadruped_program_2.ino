@@ -40,6 +40,39 @@ class DynamixelServo
       this->homePos = h;
     }
 
+    void printStatus() {
+        uint32_t  timeout = 300; //ms
+        Serial.print("Dynamixel servo ");
+        Serial.print(id);
+        Serial.println(" status info: ");
+        Serial.print("MODEL_INFORMATION: ");
+        Serial.println(shield.readControlTableItem(MODEL_INFORMATION, id, timeout));
+        Serial.print("PRESENT_VOLTAGE: ");
+        Serial.println(shield.readControlTableItem(PRESENT_VOLTAGE, id, timeout));
+        Serial.print("PRESENT_POSITION: ");
+        Serial.println(shield.readControlTableItem(PRESENT_POSITION, id, timeout));
+  
+        Serial.print("HARDWARE_ERROR_STATUS: ");
+        int32_t hardware_err_status = shield.readControlTableItem(HARDWARE_ERROR_STATUS, id, timeout);
+        Serial.println(hardware_err_status);
+        if(hardware_err_status & (1 << 5) ) {
+          Serial.println("ERROR: Bit 5  Overload Error(default) Detects that persistent load that exceeds maximum output");
+        }
+        if(hardware_err_status & (1 << 4)) {
+          Serial.println("ERROR:  Bit 4 Electrical Shock Error(default) Detects electric shock on the circuit or insufficient power to operate the motor");
+        }
+        if(hardware_err_status & (1 << 3)) {
+          Serial.println("ERROR:  Bit 3 Motor Encoder Error Detects malfunction of the motor encoder");
+        }
+        if(hardware_err_status & (1 << 2)) {
+          Serial.println("ERROR:  Bit 2 Overheating Error(default)  Detects that internal temperature exceeds the configured operating temperature");
+        }
+        if(hardware_err_status & (1 << 0)) {
+          Serial.println("ERROR:  Bit 0 Input Voltage Error Detects that input voltage exceeds the configured operating voltage");
+        }
+    }
+
+
     void setPositionMode(int mode) {
           shield.torqueOff(id);
           shield.setOperatingMode(id, mode);
@@ -128,6 +161,7 @@ class Leg
      void ping() {
          for(int i=0; i<3; i++) {
             servos[i]->ping();
+            servos[i]->printStatus();
          }
      }
 
@@ -246,7 +280,7 @@ class QuadrupedRobot {
 
 
     String stop() {
-        this->setSpeed(20.0);
+        this->setSpeed(100.0);
         this->homePosition();
         String nextCommand = CMD_EMPTY;
         while(nextCommand == CMD_EMPTY) {
