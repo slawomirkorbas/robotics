@@ -117,6 +117,13 @@ class DynamixelServo
      void setPositionRelative(float offsetDeg) {
        shield.setGoalPosition(id, homePos + offsetDeg, UNIT_DEGREE);
      }
+
+     void setAngle(double angle) {
+        shield.setGoalPosition(id, angle, UNIT_DEGREE);
+        DEBUG_SERIAL.println(" ");
+        DEBUG_SERIAL.print("angle ");
+        DEBUG_SERIAL.print(angle);
+     }
 };
 
 /**
@@ -172,27 +179,32 @@ class Leg
          }
      }
 
-     void calfUp(float deg) {
+     void setAngles(float timurAngle, float femurAngle) {
+        servos[1]->setAngle(femurAngle);
+        servos[2]->setAngle(timurAngle);
+     }
+
+     void calfUp(double deg) {
         servos[2]->setPositionRelative(inv3 ? -deg : deg);
      }
 
-     void calfDown(float deg) {
+     void calfDown(double deg) {
         servos[2]->setPositionRelative( -1* (inv3 ? -deg : deg));
      }
 
-     void tighBack(float deg) {
+     void tighBack(double deg) {
         servos[1]->setPositionRelative(inv2 ? -deg : deg);
      }
 
-     void tighForward(float deg) {
+     void tighForward(double deg) {
         servos[1]->setPositionRelative(-1*(inv2 ? -deg : deg));
      }
 
-     void hipInside(float deg ) {
+     void hipInside(double deg ) {
         servos[0]->setPositionRelative((inv1 ? -deg : deg));
      }
 
-     void hipOutside(float deg) {
+     void hipOutside(double deg) {
        servos[0]->setPositionRelative(-1*(inv1 ? -deg : deg));
      }
      
@@ -209,7 +221,44 @@ static const String CMD_TURN_RIGHT = "TURN_RIGHT";
 static const String CMD_GREET = "GREET";
 static const String CMD_FOOTWORK = "FOOTWORK";
 static const String CMD_SWING = "SWING";
+/**
+ * Calculates angle using law of cosine for known triangle edges
+ */
+static double angleFromCosineRuleDeg(double a, double b, double c) {
 
+
+   
+   Serial.println("cos value : ");
+   Serial.print("sq(a) ");
+   Serial.println(sq(a));
+      Serial.print("sq(b) ");
+   Serial.println(sq(b));
+      Serial.print("sq(c) ");
+   Serial.println(sq(c));
+      Serial.print("2*a*b ");
+   Serial.println(2*a*b);
+   Serial.println("       ");
+    Serial.print((sq(a) + sq(b) - sq(c))/(2*a*b) );
+    Serial.println("       ");
+  double radAngle = safe_acos( (sq(a) + sq(b) - sq(c))/(2*a*b) );
+  Serial.println("Rad angle: ");
+  Serial.println(radAngle);
+  return (radAngle * (180/3.1415)); //convert to degrees
+}
+
+static double calcDistance2D(double a, double b) {
+  return sqrt(sq(a) + sq(b));
+}
+
+static double safe_acos(double value) {
+    if (value<=-1.0) {
+        return 3.1415;
+    } else if (value>=1.0) {
+        return 0;
+    } else {
+        return acos(value);
+    }
+}
 
 /**
  * Main Quadruped robot class.
@@ -218,7 +267,7 @@ class QuadrupedRobot {
   public:
     Leg leg_fR = Leg(10, 11, 12,  179.0,   120.0,   80.0 ); 
     Leg leg_fL = Leg(20, 21, 22,  180.0,   240.0,   280.0 );
-    Leg leg_rL = Leg(41, 40, 55,  180.0,   340.0,   100.0 );
+    Leg leg_rL = Leg(41, 40, 55,  180.0,   340.0,   100.0 );   //285 ,180 -> angle "0"
     Leg leg_rR = Leg(31, 30, 32,  180.0,   125.0,   260.0 );
 
 //          leg_fR.configureInversion(false, true,  false);
@@ -298,12 +347,42 @@ class QuadrupedRobot {
 
     void homePosition()
     {
-          Serial.println("Home position");
+          Serial.println("Setting Home position");
           leg_fR.setHome();
           leg_fL.setHome();
           leg_rL.setHome();
           leg_rR.setHome();
           delay(500);
+    }
+
+    void moveLegTo(double targetX, double targetY) {
+
+        Serial.println("Moving leg to ...");
+        double femurLen = 97;  //mm
+        double tibiaLen = 110; //mm
+        double dist = calcDistance2D(targetX, targetY);
+         Serial.println("Distance ");
+        Serial.println(dist);
+        double tibiaAngle = angleFromCosineRuleDeg(femurLen, tibiaLen, dist);
+        Serial.println(tibiaAngle);
+
+        double betaTotal = angleFromCosineRuleDeg(dist, femurLen, tibiaLen);
+        Serial.println(betaTotal);
+        double beta2 = angleFromCosineRuleDeg(dist, targetX, targetY);
+        Serial.println(beta2);
+        double femurAngle = betaTotal - beta2;
+
+        //285 ,180
+        femurAngle = 285 + femurAngle;
+        tibiaAngle = 180 - tibiaAngle;
+        Serial.println("   ");
+        Serial.println("femurAngle: ");
+        Serial.print(femurAngle);
+        Serial.println("tibiaAngle: ");
+        Serial.print(tibiaAngle);
+        Serial.println("  ");
+        leg_rL.setAngles(femurAngle, tibiaAngle);
+      
     }
 
 
@@ -346,18 +425,26 @@ String nextCmd = CMD_STOP;
 
 void loop() 
 {
-  if(!nextCmd.equals(CMD_EMPTY)) 
-  {
-      Serial.println("Command received from master: ");
-      Serial.println(nextCmd);
-      if(CMD_STOP.equals(nextCmd))
-      {
-          nextCmd = quadrupedRobot.stop();
-      }
-      if(CMD_WALK_FORWARD.equals(nextCmd))
-      {
-          nextCmd = quadrupedRobot.walk();
-      }
-  }
+   // quadrupedRobot.stop();
+
+   // delay(2000);
+
+    quadrupedRobot.moveLegTo(100, 100);
+
+    delay(2000);
+  
+//  if(!nextCmd.equals(CMD_EMPTY)) 
+//  {
+//      Serial.println("Command received from master: ");
+//      Serial.println(nextCmd);
+//      if(CMD_STOP.equals(nextCmd))
+//      {
+//          nextCmd = quadrupedRobot.stop();
+//      }
+//      if(CMD_WALK_FORWARD.equals(nextCmd))
+//      {
+//          nextCmd = quadrupedRobot.walk();
+//      }
+//  }
 
 }
