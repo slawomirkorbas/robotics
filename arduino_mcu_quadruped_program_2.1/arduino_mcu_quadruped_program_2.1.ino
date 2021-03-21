@@ -1,5 +1,6 @@
 #include <DynamixelShield.h>
 
+
 #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_MEGA2560)
   #include <SoftwareSerial.h>
   SoftwareSerial soft_serial(7, 8); // DYNAMIXELShield UART RX/TX
@@ -121,6 +122,46 @@ class DynamixelServo
      }
 };
 
+
+/**
+ * Class representing specific motion frame for robot joint.
+ * 3DOF Joint angles (hip,femur,tibia) relative to home servo's position are calculated using geometric inverse kinematic formulas.
+ * As reference see: https://appliedgo.net/roboticarm/
+ */
+class KeyFrame {
+  public:
+    float x, y, z;
+    KeyFrame(float x, float y, float z){
+      this->x = x;
+      this->y = y;
+      this->z = z;
+    }
+
+    void transform() {
+      // to implement
+    }
+};
+
+/**
+ * Class representing motion sequence consisting of multiple key frames 
+ */
+class MotionSequnce {
+    private:
+      KeyFrame* motionFrames;
+      int len;
+  
+    public:
+      MotionSequnce( KeyFrame* frames, unsigned int len ) {
+        this->motionFrames = frames;
+        this->len = len; 
+      }
+
+      KeyFrame next(int& current) {
+        current = current >= len ? 0 : current;
+        return motionFrames[ current++ ];
+      }   
+};
+
 /**
  * Class representing robot leg consisnting of 3 servos (joints)
  */
@@ -155,25 +196,26 @@ class Leg
              servos[i]->setSpeed(speedPct); 
           }
      }
- 
-     void moveTo(float targetX, float targetY) {
 
-        float femurAngle, tibiaAngle;
+    void moveTo(KeyFrame keyFrame) {
+      moveTo(keyFrame.x, keyFrame.y, keyFrame.z);
+    }
+
+    void moveTo(float targetX, float targetY, float targetZ) {
+        float hipAngle, femurAngle, tibiaAngle;
         float femurLen = 9.6;  //cm
         float tibiaLen = 11.0; //cm
-        float dist = sqrt(sq(targetX) + sq(targetY));
-        tibiaAngle = angleFromCosineRuleDeg(femurLen, tibiaLen, dist);
-        float beta1 = angleFromCosineRuleDeg(dist, femurLen, tibiaLen);
-        float beta2 = toDeg(atan(targetX/targetY));
-        femurAngle = abs(beta2 - beta1);
-        
-          Serial.println("-----");
-          Serial.print("beta1 ");
-          Serial.println(beta1);
-          Serial.print("beta2 ");
-          Serial.println(beta2);
+        float d1 = sqrt(sq(targetZ) + sq(targetY)); 
+        hipAngle = toDeg(atan(targetZ/targetY));
 
-        //hip->setAngle(hipAngle);
+        float d2 = sqrt(sq(d1) + sq(targetX));
+        tibiaAngle = angleFromCosineRuleDeg(femurLen, tibiaLen, d2);
+
+        float beta1 = angleFromCosineRuleDeg(femurLen, d2, tibiaLen);
+        float beta2 = toDeg(atan(targetX/d1));
+        femurAngle = abs(beta1 - beta2);
+        
+        hip->setAngle(180 - hipAngle);
         femur->setAngle(this->inv ? 180 - femurAngle : 180 + femurAngle);
         tibia->setAngle(this->inv ? 360 - tibiaAngle : tibiaAngle);
     }
@@ -300,40 +342,54 @@ class QuadrupedRobot {
 
     void homePosition()
     {
-       leg_rL.moveTo(1, 14);
-       leg_fL.moveTo(1, 14);
-       leg_rR.moveTo(1, 14);
-       leg_fR.moveTo(1, 14);
-       
+         leg_rL.moveTo(1, 14, 0);
+         leg_fL.moveTo(1, 14, 0);
+         leg_rR.moveTo(1, 14, 0);
+         leg_fR.moveTo(1, 14, 0);   
     }
+
 
     /** Walks forward. Keep walking till the new command from Jetson arrives...**/
     String walk()
     {
-       int wait = 500;
+       int wait = 50;
+       KeyFrame frames[] = { {-6,15,0}, {-6,15,0}, {3,12,0}, {6,15,0} }; 
+       MotionSequnce motionSeqence( frames, sizeof(frames)/sizeof(frames[0]) );
+
+      int fL=2, fR=0, rL=0, rR=2; // starting frame indexes for each leg
        while(true) {
           delay(wait);
-          leg_rL.moveTo(-6, 15);
-          leg_fL.moveTo(3, 12);
-          leg_rR.moveTo(3, 12);
-          leg_fR.moveTo(-6, 15);
-          
-          delay(wait);
-          leg_fL.moveTo(6, 15);
-          leg_rR.moveTo(6, 15);
-          
-          delay(wait);
-          leg_fL.moveTo(-6, 15);
-          leg_rL.moveTo(3, 12);
-          //...
-          leg_fR.moveTo(3, 12);
-          leg_rR.moveTo(-6, 15);
-
-          delay(wait);
-          leg_rL.moveTo(6, 15);
-          leg_fR.moveTo(6, 15);
+          leg_fL.moveTo(motionSeqence.next(fL));
+          leg_rL.moveTo(motionSeqence.next(rL));
+          leg_fR.moveTo(motionSeqence.next(fR));
+          leg_rR.moveTo(motionSeqence.next(rR));   
        }
-       return ""; 
+
+//       int i=0, n=2;
+//       while(true) {
+//          delay(wait);
+//          leg_rL.moveTo(motionFrames[0]);
+//          leg_fL.moveTo(motionFrames[2]);
+//          leg_rR.moveTo(motionFrames[2]);
+//          leg_fR.moveTo(motionFrames[0]);
+//          
+//          delay(wait);
+//          leg_rL.moveTo(motionFrames[1]);
+//          leg_fL.moveTo(motionFrames[2]);
+//          leg_rR.moveTo(motionFrames[2]);
+//          leg_fR.moveTo(motionFrames[1]);
+//          
+//          delay(wait);
+//          leg_rL.moveTo(motionFrames[1]);
+//          leg_fL.moveTo(motionFrames[0]);  
+//          leg_fR.moveTo(motionFrames[1]);
+//          leg_rR.moveTo(motionFrames[0]);
+//
+//          delay(wait);
+//          leg_rL.moveTo(motionFrames[2]);
+//          leg_fR.moveTo(motionFrames[2]);
+//       }
+       return "vvv"; 
 
       
 //      //set velocity before walk sequence...
