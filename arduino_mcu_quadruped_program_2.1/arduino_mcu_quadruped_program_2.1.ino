@@ -352,7 +352,7 @@ class QuadrupedRobot {
     /** Walks forward. Keep walking till the new command from Jetson arrives...**/
     String walk()
     {
-       int wait = 50;
+       int wait = 200;
        KeyFrame frames[] = { {-6,15,0}, {-6,15,0}, {3,12,0}, {6,15,0} }; 
        MotionSequnce motionSeqence( frames, sizeof(frames)/sizeof(frames[0]) );
 
@@ -365,30 +365,6 @@ class QuadrupedRobot {
           leg_rR.moveTo(motionSeqence.next(rR));   
        }
 
-//       int i=0, n=2;
-//       while(true) {
-//          delay(wait);
-//          leg_rL.moveTo(motionFrames[0]);
-//          leg_fL.moveTo(motionFrames[2]);
-//          leg_rR.moveTo(motionFrames[2]);
-//          leg_fR.moveTo(motionFrames[0]);
-//          
-//          delay(wait);
-//          leg_rL.moveTo(motionFrames[1]);
-//          leg_fL.moveTo(motionFrames[2]);
-//          leg_rR.moveTo(motionFrames[2]);
-//          leg_fR.moveTo(motionFrames[1]);
-//          
-//          delay(wait);
-//          leg_rL.moveTo(motionFrames[1]);
-//          leg_fL.moveTo(motionFrames[0]);  
-//          leg_fR.moveTo(motionFrames[1]);
-//          leg_rR.moveTo(motionFrames[0]);
-//
-//          delay(wait);
-//          leg_rL.moveTo(motionFrames[2]);
-//          leg_fR.moveTo(motionFrames[2]);
-//       }
        return "vvv"; 
 
       
@@ -405,6 +381,42 @@ class QuadrupedRobot {
 //      }
 //      return nextCommand;
     }
+
+    String turn(boolean right) {
+        // slow down...    
+        this->setSpeed(20.0);
+        this->homePosition();
+        delay(1000);
+
+         //KeyFrame fr_r_01[] = { {1,14,0} , {1,12,-2} , {1,14,-2} , {1,14,-2}, {1,14,0} }; 
+         //KeyFrame fr_r_02[] = { {1,14,-3}, {1,14,-2 }, {1,12,2 }, {1,14,2}, {1,14,0} };    
+         
+         KeyFrame fr_f_01[] = { {1,12,-2}, {1,14,-2}, {1,14,-2}, {1,14,0} }; 
+         KeyFrame fr_f_02[] = { {1,14,0 }, {1,14,0 }, {1,12,2 }, {1,14,2} };    
+         //int r_seq_len = sizeof(fr_r_01)/sizeof(fr_r_01[0]);   
+         int f_seq_len = sizeof(fr_f_01)/sizeof(fr_f_01[0]);
+         //MotionSequnce m_seq_r1( fr_r_01, r_seq_len );
+         //MotionSequnce m_seq_r2( fr_r_02, r_seq_len ); 
+         MotionSequnce m_seq_f1( fr_f_01, f_seq_len );
+         MotionSequnce m_seq_f2( fr_f_02, f_seq_len );
+         int wait = 200;
+         int rr_01=0, rr_02=0, ff_01=0, ff_02=0; // starting frame indexes for each leg
+         while(true) {
+              leg_fL.moveTo(right ? m_seq_f1.next(ff_01) : m_seq_f2.next(ff_01));
+              leg_fR.moveTo(right ? m_seq_f2.next(ff_02) : m_seq_f1.next(ff_02)); 
+              leg_rL.moveTo(right ? m_seq_f2.next(rr_01) : m_seq_f1.next(rr_01));
+              leg_rR.moveTo(right ? m_seq_f1.next(rr_02) : m_seq_f2.next(rr_02)); 
+              delay(wait);  
+         }
+         
+        String nextCommand = CMD_EMPTY;
+//        while(nextCommand == CMD_EMPTY)
+//        {
+//
+//            nextCommand = getNextCommandFromJetson();
+//        }
+        return nextCommand;
+  }
     
 };
 
@@ -429,20 +441,11 @@ void loop()
 
    robot.homePosition();
    delay(2000);
-   
-   robot.walk();
-  
-//   robot.homePosition();
 
-//    while(true){
-//       delay(2000);
-//       robot.moveLegTo(4.0, 16.0);
-//       delay(2000);
-//       robot.moveLegTo(6.0, 20.0);
-//       delay(2000);
-//       robot.moveLegTo(1.0, 18.0);
-//    }
-    
+   robot.turn(true);
+   //robot.walk();
+  
+
 //  if(!nextCmd.equals(CMD_EMPTY)) 
 //  {
 //      Serial.println("Command received from master: ");
