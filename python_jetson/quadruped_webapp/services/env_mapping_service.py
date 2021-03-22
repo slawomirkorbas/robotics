@@ -1,5 +1,6 @@
 from rplidar import RPLidar, RPLidarException
 from threading import Thread, Event
+import queue
 import time
 
 # See: https://www.instructables.com/Getting-Started-With-the-Low-cost-RPLIDAR-Using-Je/
@@ -15,6 +16,7 @@ class EnvMappingService:
         # Initialize a global lidar thread object collecting data
         self.lidarThread = None
         self.stopLidarThread = Event()
+        self.collisionEvent = threading.Event()
         self.angle2dist = {} 
 
         self.lidar = RPLidar('/dev/ttyUSB0')
@@ -22,11 +24,32 @@ class EnvMappingService:
         #print(self.lidar.get_health())
         self.lidar.clear_input()
 
+    def start_collision_detection(self):
+        if self.lidarThread is None:
+            self.scan_queue = queue.Queue()
+            self.lidar_scan_ready_callback = self.sample_queue_callback
+            self.lidarThread = Thread(target=self.scan)
+            self.lidarThread.start()
+    
+    def sample_queue_callback(self, data_360_sample):
+        self.scan_queue.clear()
+        self.scan_queue.put(data_360_sample)
+
+    def collision_detected(self):
+        if(self.scan_queue.full()):
+            # wait for data in queue
+            data_360_sample = self.scan_queue.get()
+            if(True):
+                return True # check data here !!!!!!!
+        return False
+
+
     def start_scanning(self, lidar_scan_ready_callback):
-          if self.lidarThread is None:
+        if self.lidarThread is None:
             self.lidar_scan_ready_callback = lidar_scan_ready_callback
             self.lidarThread = Thread(target=self.scan)
             self.lidarThread.start()
+
     
     # notify lidar thread to stop and the waits till it finish executing
     def stop_scanning(self):

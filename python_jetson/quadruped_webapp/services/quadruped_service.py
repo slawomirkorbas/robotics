@@ -2,12 +2,14 @@ import serial
 import glob
 import time
 import RPi.GPIO as GPIO
+from threading import Thread, Event
 
 
 class QuadrupedService:
 
     CMD_TERMINATOR = "|"
     CMD_EMPTY = ""
+    CMD_STATUS = "STATUS"
     CMD_WALK_FORWARD = "WALK_FORWARD"
     CMD_WALK_BACKWARD = "WALK_BACKWARD"
     CMD_STOP = "STOP"
@@ -57,6 +59,18 @@ class QuadrupedService:
         except Exception as e:
             print(e)
             #arduino.close() 
+    
+    def get_arduino_status(self):
+        arduino_status = ""
+        try:
+            print("sending command: " + command + " to Arduino MCU board...")
+            self.arduino.write((command + self.CMD_TERMINATOR).encode()) 
+            time.sleep(5) # give some time for Arduino...
+            arduino_status = self.arduino.read_until(self.CMD_TERMINATOR).decode()
+        except Exception as e:
+            print(e)
+        return arduino_status
+
 
     def homePosition(self):
         return self.send_cmd_2_arduino(self.CMD_STOP)
@@ -88,4 +102,46 @@ class QuadrupedService:
             GPIO.output(self.led_vcc_pin, GPIO.LOW)
             GPIO.output(self.led_control_pin, GPIO.LOW)
             #GPIO.cleanup()
+    
+    def robot_worker_thread(self, env_mapping_service, stop_event):
+        is_collison = False
+        is_walking = False
+        while not stop_event.is_set():
+            if(env_mapping_service.collision_detected()):
+                if(is_collision==False):
+                    is_collison = True
+                    self.turn_right() # when collission detected keep turning
+                    is_walking = False
+            else:
+                is_collison=False
+                if(is_walking==False):
+                    self.walk() # walk forward 
+                    is_walking = True
+
+        
+
+    def free_walk_with_collision_avoidance(self, env_mapping_service):
+        # start robot worker thread
+        self.stop_free_walk_event = Event()
+        self.robot_worker_thread = Thread(target=self.robot_worker_thread, args=(env_mapping_service, stop_free_walk_event))
+        self.lidarThread.start()
+
+        # start lidar thread (throeugh env mapping service)
+        env_mapping_service.start_collision_detection()
+
+    def stop_free_walk(slef, env_mapping_service):
+        if self.robot_worker_thread is not None:
+            self.stop_free_walk_event.set()
+            self.robot_worker_thread.join()
+            self.robot_worker_thread = None
+            self.robot_worker_thread.clear()
+            env_mapping_service.stop_scanning()
+
+
+
+
+
+
+
+
 

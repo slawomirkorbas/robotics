@@ -40,36 +40,31 @@ class DynamixelServo
       this->id = servoId;
     }
 
-    void printStatus() {
+    String getStatus() {
+        String servoStatus = "---------------------------------\r\n";
         uint32_t  timeout = 300; //ms
-        Serial.print("Dynamixel servo ");
-        Serial.print(id);
-        Serial.println(" status info: ");
-        Serial.print("MODEL_INFORMATION: ");
-        Serial.println(shield.readControlTableItem(MODEL_INFORMATION, id, timeout));
-        Serial.print("PRESENT_VOLTAGE: ");
-        Serial.println(shield.readControlTableItem(PRESENT_VOLTAGE, id, timeout));
-        Serial.print("PRESENT_POSITION: ");
-        Serial.println(shield.readControlTableItem(PRESENT_POSITION, id, timeout));
-  
-        Serial.print("HARDWARE_ERROR_STATUS: ");
+        servoStatus += "Dynamixel servo " + String(this->id) + " status info: \r\n";
+        servoStatus += "MODEL_INFORMATION: " + String(shield.readControlTableItem(MODEL_INFORMATION, id, timeout)) + "\r\n";
+        servoStatus += "PRESENT_VOLTAGE: " + String(shield.readControlTableItem(PRESENT_VOLTAGE, id, timeout)) + "r\n";
+        servoStatus += "PRESENT_POSITION: " + String(shield.readControlTableItem(PRESENT_POSITION, id, timeout)) + "\r\n";
         int32_t hardware_err_status = shield.readControlTableItem(HARDWARE_ERROR_STATUS, id, timeout);
-        Serial.println(hardware_err_status);
+        servoStatus += "HARDWARE_ERROR_STATUS: " + String(hardware_err_status) + "\r\n";
         if(hardware_err_status & (1 << 5) ) {
-          Serial.println("ERROR: Bit 5  Overload Error(default) Detects that persistent load that exceeds maximum output");
+          servoStatus += "ERROR: Bit 5  Overload Error(default) Detects that persistent load that exceeds maximum output \r\n";
         }
         if(hardware_err_status & (1 << 4)) {
-          Serial.println("ERROR:  Bit 4 Electrical Shock Error(default) Detects electric shock on the circuit or insufficient power to operate the motor");
+            servoStatus += "ERROR:  Bit 4 Electrical Shock Error(default) Detects electric shock on the circuit or insufficient power to operate the motor \r\n";
         }
         if(hardware_err_status & (1 << 3)) {
-          Serial.println("ERROR:  Bit 3 Motor Encoder Error Detects malfunction of the motor encoder");
+            servoStatus += "ERROR:  Bit 3 Motor Encoder Error Detects malfunction of the motor encoder \r\n";
         }
         if(hardware_err_status & (1 << 2)) {
-          Serial.println("ERROR:  Bit 2 Overheating Error(default)  Detects that internal temperature exceeds the configured operating temperature");
+            servoStatus += "ERROR:  Bit 2 Overheating Error(default)  Detects that internal temperature exceeds the configured operating temperature \r\n";
         }
         if(hardware_err_status & (1 << 0)) {
-          Serial.println("ERROR:  Bit 0 Input Voltage Error Detects that input voltage exceeds the configured operating voltage");
+            servoStatus += "ERROR:  Bit 0 Input Voltage Error Detects that input voltage exceeds the configured operating voltage \r\n";
         }
+        return servoStatus;
     }
 
     void setHomingOffset(double offsetDeg) {
@@ -116,9 +111,6 @@ class DynamixelServo
 
      void setAngle(float angle) {
         shield.setGoalPosition(id, angle, UNIT_DEGREE);
-        DEBUG_SERIAL.println(" ");
-        DEBUG_SERIAL.print("angle ");
-        DEBUG_SERIAL.print(angle);
      }
 };
 
@@ -198,7 +190,7 @@ class Leg
      }
 
     void moveTo(KeyFrame keyFrame) {
-      moveTo(keyFrame.x, keyFrame.y, keyFrame.z);
+        moveTo(keyFrame.x, keyFrame.y, keyFrame.z);
     }
 
     void moveTo(float targetX, float targetY, float targetZ) {
@@ -246,15 +238,24 @@ class Leg
      void ping() {
          for(int i=0; i<3; i++) {
             servos[i]->ping();
-            servos[i]->printStatus();
          }
+     }
+
+     String getStatus() {
+        String legStatus = "";
+        for(int i=0; i<3; i++) {
+            legStatus += servos[i]->getStatus();
+         }
+        return legStatus;
      }
      
 };
 
 
 /** Command set for the robot **/
+static const char TERMINATOR = '|';
 static const String CMD_EMPTY = "";
+static const String CMD_STATUS = "STATUS";
 static const String CMD_WALK_FORWARD = "WALK_FORWARD";
 static const String CMD_WALK_BACKWARD = "WALK_BACKWARD";
 static const String CMD_STOP = "STOP";
@@ -274,7 +275,7 @@ class QuadrupedRobot {
     Leg leg_rR = Leg(31, 30, 32, true);
     Leg leg_fL = Leg(20, 21, 22, false);
     Leg leg_rL = Leg(41, 40, 55, false);  
-
+    Leg legs[4] = {leg_fR, leg_rR, leg_fL, leg_rL };
 
     String currenlyExecutedCommand;
 
@@ -287,18 +288,43 @@ class QuadrupedRobot {
     /** Check if there is new order from Jetson and reads it from the buffer **/
     String getNextCommandFromJetson() {
         String commandFromJetson = CMD_EMPTY;
-        static const char TERMINATOR = '|';
-        int numberOfBytes = Serial.available();
-        if(numberOfBytes > 0)
+        int bytes = Serial.available();
+        if(bytes >= 5) 
         {
           commandFromJetson = Serial.readStringUntil(TERMINATOR);
-          // confirm 
-          String ackMsg = "New command: " + commandFromJetson + ". Bytes received: " + String(numberOfBytes) + ". Previous command: " + currenlyExecutedCommand + TERMINATOR; 
-          Serial.print(ackMsg);
-          //Serial.flush();
-          currenlyExecutedCommand = commandFromJetson;
+          cleanUpInputBuffer(); // removes remaining data from input buffer
+          if(commandFromJetson.equals(CMD_STATUS)) {
+            String status = robotStatus() + TERMINATOR; 
+            Serial.print(status);
+            //Serial.flush();
+            commandFromJetson = CMD_EMPTY; //retuen an empty command so it doesn't stop robot from executing current order
+          }
+          else {
+            // confirm 
+            String ackMsg = "New command accepted: " + commandFromJetson; 
+            Serial.print(ackMsg);
+            //Serial.flush();
+            currenlyExecutedCommand = commandFromJetson;
+          }
         }
         return commandFromJetson;
+    }
+
+
+    /** clean all data from input buffer **/
+    String cleanUpInputBuffer() {
+        while(Serial.available() > 0) {
+          char t = Serial.read();
+        }
+    }
+
+    /** returns robot status **/
+    String robotStatus() {
+        String status = "Robot status: \r\n\\r\n";
+        for( int i=0; i<4; i++) {
+            status += legs[i].getStatus();
+        }
+        return status;
     }
 
     /**
@@ -306,36 +332,26 @@ class QuadrupedRobot {
     */
     void configure() 
     {
-        Serial.println("Robot configuration started...");
-        leg_fR.ping();
-        leg_fL.ping();
-        leg_rL.ping();
-        leg_rR.ping();
-    
-        leg_fR.enablePositionMode();
-        leg_fL.enablePositionMode();
-        leg_rL.enablePositionMode();
-        leg_rR.enablePositionMode();
-   
-        Serial.println("Robot configuration finished...");
+        for( int i=0; i<4; i++) {
+          legs[i].ping();
+          legs[i].enablePositionMode();
+        }
     }
 
     void setSpeed(double percentage)
     {
-        leg_fR.setSpeed(percentage);
-        leg_fL.setSpeed(percentage);
-        leg_rL.setSpeed(percentage);
-        leg_rR.setSpeed(percentage); 
+      for( int i=0; i<4; i++) {
+          legs[i].setSpeed(percentage);
+      }
     }
 
 
     String stop() {
-        this->setSpeed(20.0);
         this->homePosition();
         String nextCommand = CMD_EMPTY;
         while(nextCommand == CMD_EMPTY) {
-          delay(500);
-          nextCommand = getNextCommandFromJetson();
+            delay(500);
+            nextCommand = getNextCommandFromJetson();
         }
         return nextCommand;
     }
@@ -349,72 +365,42 @@ class QuadrupedRobot {
     }
 
 
-    /** Walks forward. Keep walking till the new command from Jetson arrives...**/
     String walk()
     {
        int wait = 200;
        KeyFrame frames[] = { {-6,15,0}, {-6,15,0}, {3,12,0}, {6,15,0} }; 
        MotionSequnce motionSeqence( frames, sizeof(frames)/sizeof(frames[0]) );
-
-      int fL=2, fR=0, rL=0, rR=2; // starting frame indexes for each leg
-       while(true) {
+       int fL=2, fR=0, rL=0, rR=2; // starting frame indexes for each leg
+       String nextCommand = CMD_EMPTY;
+       while(nextCommand == CMD_EMPTY) {
           delay(wait);
           leg_fL.moveTo(motionSeqence.next(fL));
           leg_rL.moveTo(motionSeqence.next(rL));
           leg_fR.moveTo(motionSeqence.next(fR));
           leg_rR.moveTo(motionSeqence.next(rR));   
+
+          nextCommand = getNextCommandFromJetson();
        }
-
-       return "vvv"; 
-
-      
-//      //set velocity before walk sequence...
-//      this->setSpeed(70.0);
-//      int wait = 350;
-//      String nextCommand = CMD_EMPTY;
-//      while(nextCommand == CMD_EMPTY) 
-//      {
-//          delay(wait);
-//          // to implement ...
-//          
-//          nextCommand = getNextCommandFromJetson();
-//      }
-//      return nextCommand;
+       return nextCommand; 
     }
 
-    String turn(boolean right) {
-        // slow down...    
-        this->setSpeed(20.0);
-        this->homePosition();
-        delay(1000);
-
-         //KeyFrame fr_r_01[] = { {1,14,0} , {1,12,-2} , {1,14,-2} , {1,14,-2}, {1,14,0} }; 
-         //KeyFrame fr_r_02[] = { {1,14,-3}, {1,14,-2 }, {1,12,2 }, {1,14,2}, {1,14,0} };    
-         
+    String turn(boolean right) {    
          KeyFrame fr_f_01[] = { {1,12,-2}, {1,14,-2}, {1,14,-2}, {1,14,0} }; 
-         KeyFrame fr_f_02[] = { {1,14,0 }, {1,14,0 }, {1,12,2 }, {1,14,2} };    
-         //int r_seq_len = sizeof(fr_r_01)/sizeof(fr_r_01[0]);   
+         KeyFrame fr_f_02[] = { {1,14,0 }, {1,14,0 }, {1,12,2 }, {1,14,2} };     
          int f_seq_len = sizeof(fr_f_01)/sizeof(fr_f_01[0]);
-         //MotionSequnce m_seq_r1( fr_r_01, r_seq_len );
-         //MotionSequnce m_seq_r2( fr_r_02, r_seq_len ); 
          MotionSequnce m_seq_f1( fr_f_01, f_seq_len );
          MotionSequnce m_seq_f2( fr_f_02, f_seq_len );
          int wait = 200;
          int rr_01=0, rr_02=0, ff_01=0, ff_02=0; // starting frame indexes for each leg
-         while(true) {
+         String nextCommand = CMD_EMPTY;
+         while(nextCommand == CMD_EMPTY) {
+              delay(wait); 
               leg_fL.moveTo(right ? m_seq_f1.next(ff_01) : m_seq_f2.next(ff_01));
               leg_fR.moveTo(right ? m_seq_f2.next(ff_02) : m_seq_f1.next(ff_02)); 
               leg_rL.moveTo(right ? m_seq_f2.next(rr_01) : m_seq_f1.next(rr_01));
               leg_rR.moveTo(right ? m_seq_f1.next(rr_02) : m_seq_f2.next(rr_02)); 
-              delay(wait);  
+              nextCommand = getNextCommandFromJetson();
          }
-         
-        String nextCommand = CMD_EMPTY;
-//        while(nextCommand == CMD_EMPTY)
-//        {
-//
-//            nextCommand = getNextCommandFromJetson();
-//        }
         return nextCommand;
   }
     
@@ -430,6 +416,7 @@ void setup() {
   shield.setPortProtocolVersion(DXL_PROTOCOL_VERSION);    // Set Port Protocol Version. This has to match with DYNAMIXEL protocol version.
   delay(2000);
   robot.configure();
+  robot.setSpeed(20.0);
 }
 
 
@@ -437,27 +424,25 @@ String nextCmd = CMD_STOP;
 
 void loop() 
 {
-   robot.setSpeed(20.0);
-
-   robot.homePosition();
-   delay(2000);
-
-   robot.turn(true);
-   //robot.walk();
-  
-
-//  if(!nextCmd.equals(CMD_EMPTY)) 
-//  {
-//      Serial.println("Command received from master: ");
-//      Serial.println(nextCmd);
-//      if(CMD_STOP.equals(nextCmd))
-//      {
-//          nextCmd = quadrupedRobot.stop();
-//      }
-//      if(CMD_WALK_FORWARD.equals(nextCmd))
-//      {
-//          nextCmd = quadrupedRobot.walk();
-//      }
-//  }
+  if(!nextCmd.equals(CMD_EMPTY)) 
+  {
+      if(CMD_STOP.equals(nextCmd))
+      {
+          nextCmd = robot.stop();
+      }
+      if(CMD_WALK_FORWARD.equals(nextCmd))
+      {
+          nextCmd = robot.walk();
+      }
+      if(CMD_TURN_LEFT.equals(nextCmd))
+      {
+          nextCmd = robot.turn(true);
+      }
+      if(CMD_TURN_RIGHT.equals(nextCmd))
+      {
+          nextCmd = robot.turn(false);
+      }
+      
+  }
 
 }

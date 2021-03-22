@@ -64,6 +64,11 @@ def turn_left(service: QuadrupedService):
     return "Robot is turning left..."
 
 @inject
+@app.route('/robot_status', methods = ['GET'])
+def get_robot_status(service: QuadrupedService):
+    return service.get_arduino_status()
+
+@inject
 @app.route('/shutdown', methods = ['POST'])
 def shutdown_server(service: QuadrupedService):
     service.shut_down()
