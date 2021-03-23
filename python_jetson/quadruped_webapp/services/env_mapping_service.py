@@ -16,7 +16,6 @@ class EnvMappingService:
         # Initialize a global lidar thread object collecting data
         self.lidarThread = None
         self.stopLidarThread = Event()
-        self.collisionEvent = threading.Event()
         self.angle2dist = {} 
 
         self.lidar = RPLidar('/dev/ttyUSB0')
@@ -24,25 +23,25 @@ class EnvMappingService:
         #print(self.lidar.get_health())
         self.lidar.clear_input()
 
-    def start_collision_detection(self):
+    def start_collision_detection(self, collision_event):
         if self.lidarThread is None:
-            self.scan_queue = queue.Queue()
-            self.lidar_scan_ready_callback = self.sample_queue_callback
+            self.collision_event = collision_event
+            self.lidar_scan_ready_callback = self.collision_evaluation_callback
             self.lidarThread = Thread(target=self.scan)
             self.lidarThread.start()
     
-    def sample_queue_callback(self, data_360_sample):
-        self.scan_queue.clear()
-        self.scan_queue.put(data_360_sample)
-
-    def collision_detected(self):
-        if(self.scan_queue.full()):
-            # wait for data in queue
-            data_360_sample = self.scan_queue.get()
-            if(True):
-                return True # check data here !!!!!!!
-        return False
-
+    def collision_evaluation_callback(self, data_360_sample):
+        front_left = data_360_sample.get(340) 
+        front_center = data_360_sample.get(0) 
+        front_right = data_360_sample.get(20) 
+        if((front_left is not None and front_left < 300) or 
+           (front_center is not None and front_center < 300) or 
+           (front_right is not None and front_right < 300)):
+                    # set collision event and let know other threads
+                    self.collision_event.set()
+        else:
+            # clear collision event 
+            self.collision_event.clear()
 
     def start_scanning(self, lidar_scan_ready_callback):
         if self.lidarThread is None:
@@ -58,7 +57,8 @@ class EnvMappingService:
             self.lidarThread.join()
             self.lidarThread = None
             self.stopLidarThread.clear()
-            self.lidar.stop_motor()
+        self.lidar.stop()
+        self.lidar.stop_motor()
 
 
     #each scan is a tuple (quality, angle(0-360), dist (mm))
@@ -67,7 +67,6 @@ class EnvMappingService:
         while not self.stopLidarThread.is_set():
             # rplidar.RPLidarException: Incorrect descriptor starting bytes
             rplidarException = False
-
             try:
                 self.collect_scan_data()
             except RPLidarException:
@@ -78,9 +77,10 @@ class EnvMappingService:
                 self.lidar.disconnect()
                 self.lidar.connect()   
                 self.collect_scan_data()
-
-            self.lidar.stop()
-            time.sleep(0.2)
+            time.sleep(0.05)
+            self.lidar.clear_input()
+        self.lidar.stop()
+            
 
 
     def collect_scan_data(self):
@@ -93,7 +93,7 @@ class EnvMappingService:
                 degree = int(round(tup[1]))%360
                 distance = int(round(tup[2]))
                 self.angle2dist[degree] = distance
-                if len(self.angle2dist) >= 330:
+                if len(self.angle2dist) >= 300:
                     data_collected = True
                     break
             

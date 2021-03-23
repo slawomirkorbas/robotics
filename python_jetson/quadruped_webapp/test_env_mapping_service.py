@@ -20,3 +20,6 @@ def test_scan():
 
 def lidar_scan_ready_callback(angle2dist):
     assert(True)
+
+
+    

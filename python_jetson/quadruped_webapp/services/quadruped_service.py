@@ -30,7 +30,7 @@ class QuadrupedService:
             xonxoff = False,
             rtscts = False,
             dsrdtr = False,
-            writeTimeout = 10
+            writeTimeout = 5
         )
 
         #setup GPIO LED light
@@ -52,10 +52,11 @@ class QuadrupedService:
         try:
             print("sending command: " + command + " to Arduino MCU board...")
             self.arduino.write((command + self.CMD_TERMINATOR).encode()) 
-            time.sleep(0.2) # give some time for Arduino...
-            response = self.arduino.read_until(self.CMD_TERMINATOR).decode()
-            if response:
-                print("arduino response: " + response)
+            #time.sleep(0.2) # give some time for Arduino...
+            #resonse = self.arduino.read
+            #response = self.arduino.read_until(self.CMD_TERMINATOR).decode()
+            #if response:
+            #    print("arduino response: " + response)
         except Exception as e:
             print(e)
             #arduino.close() 
@@ -76,7 +77,7 @@ class QuadrupedService:
         return self.send_cmd_2_arduino(self.CMD_STOP)
 
     def walk(self):
-        return self.send_cmd_2_arduino(self.CMD_WALK_FORWARD)
+        return self.send_cmd_2_arduino(self.self.CMD_WALK_FORWARD)
 
     def swing(self):
         return self.send_cmd_2_arduino(self.CMD_SWING)
@@ -102,32 +103,47 @@ class QuadrupedService:
             GPIO.output(self.led_vcc_pin, GPIO.LOW)
             GPIO.output(self.led_control_pin, GPIO.LOW)
             #GPIO.cleanup()
+
     
-    def robot_worker_thread(self, env_mapping_service, stop_event):
-        is_collison = False
+
+    def robot_worker_thread(self, collision_event, stop_event):
         is_walking = False
+        is_turning = False
+        GPIO.output(self.led_vcc_pin, GPIO.HIGH)
+        GPIO.output(self.led_control_pin, GPIO.LOW)
+        # check for collision every 200 ms
+        collision_check_timeout = 0.2 # 200 ms
         while not stop_event.is_set():
-            if(env_mapping_service.collision_detected()):
-                if(is_collision==False):
-                    is_collison = True
+            if(collision_event.wait(collision_check_timeout)):
+                GPIO.output(self.led_control_pin, GPIO.HIGH) # indicate collision with front LED light
+                if(is_turning==False):
                     self.turn_right() # when collission detected keep turning
+                    is_turning = True
                     is_walking = False
             else:
-                is_collison=False
+                GPIO.output(self.led_control_pin, GPIO.LOW)
                 if(is_walking==False):
-                    self.walk() # walk forward 
+                    self.walk() # walk forward
                     is_walking = True
+                    is_turning = False
 
-        
+
 
     def free_walk_with_collision_avoidance(self, env_mapping_service):
-        # start robot worker thread
-        self.stop_free_walk_event = Event()
-        self.robot_worker_thread = Thread(target=self.robot_worker_thread, args=(env_mapping_service, stop_free_walk_event))
-        self.lidarThread.start()
+        #stop scanning first
+        env_mapping_service.stop_scanning()
+        time.sleep(1)
 
-        # start lidar thread (throeugh env mapping service)
-        env_mapping_service.start_collision_detection()
+        # start robot worker thread
+        self.collision_event = Event()
+        self.stop_free_walk_event = Event()
+        self.robot_worker_thread = Thread(target=self.robot_worker_thread, args=(self.collision_event, self.stop_free_walk_event))
+        self.robot_worker_thread.start()
+
+        # start lidar thread (through env mapping service)
+        env_mapping_service.start_collision_detection(self.collision_event)
+
+
 
     def stop_free_walk(slef, env_mapping_service):
         if self.robot_worker_thread is not None:
