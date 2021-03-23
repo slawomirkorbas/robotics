@@ -20,25 +20,32 @@ class QuadrupedService:
     CMD_SWING = "SWING"
 
     def __init__(self):
-        self.arduino = serial.Serial(
-            port = '/dev/ttyACM0',
-            baudrate = 115200,
-            bytesize = serial.EIGHTBITS, 
-            parity = serial.PARITY_NONE,
-            stopbits = serial.STOPBITS_ONE, 
-            timeout = 10,
-            xonxoff = False,
-            rtscts = False,
-            dsrdtr = False,
-            writeTimeout = 5
-        )
-
+        try:
+            self.init_serial_to_arduino('/dev/ttyACM0')
+        except Exception as e: 
+            self.init_serial_to_arduino('/dev/ttyACM1')
+       
         #setup GPIO LED light
         self.led_control_pin = 16
         self.led_vcc_pin = 18
         GPIO.setmode(GPIO.BOARD)
         GPIO.setup(self.led_control_pin, GPIO.OUT) #led control (ON/OFF)
         GPIO.setup(self.led_vcc_pin, GPIO.OUT) #led Vcc (5V)
+
+    def init_serial_to_arduino(self, port_name):
+        self.arduino = serial.Serial(
+                port = port_name,
+                baudrate = 115200,
+                bytesize = serial.EIGHTBITS, 
+                parity = serial.PARITY_NONE,
+                stopbits = serial.STOPBITS_ONE, 
+                timeout = 10,
+                xonxoff = False,
+                rtscts = False,
+                dsrdtr = False,
+                write_timeout=None
+                #writeTimeout = 5
+            )
 
     def shut_down(self):
         print('Closing port... ')
@@ -77,7 +84,7 @@ class QuadrupedService:
         return self.send_cmd_2_arduino(self.CMD_STOP)
 
     def walk(self):
-        return self.send_cmd_2_arduino(self.self.CMD_WALK_FORWARD)
+        return self.send_cmd_2_arduino(self.CMD_WALK_FORWARD)
 
     def swing(self):
         return self.send_cmd_2_arduino(self.CMD_SWING)

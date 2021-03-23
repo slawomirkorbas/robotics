@@ -31,14 +31,18 @@ class EnvMappingService:
             self.lidarThread.start()
     
     def collision_evaluation_callback(self, data_360_sample):
-        front_left = data_360_sample.get(340) 
+        front_left = data_360_sample.get(330) 
+        front_cl = data_360_sample.get(350) 
         front_center = data_360_sample.get(0) 
-        front_right = data_360_sample.get(20) 
+        front_rl = data_360_sample.get(10) 
+        front_right = data_360_sample.get(30) 
         if((front_left is not None and front_left < 300) or 
+           (front_cl is not None and front_cl < 300) or 
            (front_center is not None and front_center < 300) or 
+           (front_rl is not None and front_rl < 300) or 
            (front_right is not None and front_right < 300)):
-                    # set collision event and let know other threads
-                    self.collision_event.set()
+                # set collision event and let know other threads
+                self.collision_event.set()
         else:
             # clear collision event 
             self.collision_event.clear()
@@ -78,7 +82,7 @@ class EnvMappingService:
                 self.lidar.connect()   
                 self.collect_scan_data()
             time.sleep(0.05)
-            self.lidar.clear_input()
+            #self.lidar.clear_input()
         self.lidar.stop()
             
 
