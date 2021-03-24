@@ -151,14 +151,17 @@ class QuadrupedService:
         env_mapping_service.start_collision_detection(self.collision_event)
 
 
-
-    def stop_free_walk(slef, env_mapping_service):
+    def stop_free_walk(self, env_mapping_service):
         if self.robot_worker_thread is not None:
-            self.stop_free_walk_event.set()
+            if self.stop_free_walk_event is not None:
+                self.stop_free_walk_event.set()
+                self.stop_free_walk_event.clear()
             self.robot_worker_thread.join()
             self.robot_worker_thread = None
-            self.robot_worker_thread.clear()
+            # stop scanning
             env_mapping_service.stop_scanning()
+            # put robot into home posistion (stop)
+            self.homePosition()
 
 
 

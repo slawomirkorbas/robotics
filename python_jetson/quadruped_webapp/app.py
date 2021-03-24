@@ -11,11 +11,15 @@ import atexit
 from signal import signal, SIGINT
 from sys import exit
 from flask_socketio import SocketIO, emit
+import RPi.GPIO as GPIO
+import requests
+import time
+from flask_script import Manager, Server
+from threading import Thread, Event
 
 
 app = Flask(__name__)
 socketio = SocketIO(app)
-
 
 @app.route('/')
 def home():
@@ -64,14 +68,29 @@ def turn_left(service: QuadrupedService):
     return "Robot is turning left..."
 
 @inject
+@app.route('/free_walk', methods = ['POST'])
+def free_walk(service: QuadrupedService, env_mapping_service: EnvMappingService):
+    service.free_walk_with_collision_avoidance(env_mapping_service)
+    return "Robot is walking with collision avoidance..."
+
+@inject
+@app.route('/stop_free_walk', methods = ['POST'])
+def stop_free_walk(service: QuadrupedService, env_mapping_service: EnvMappingService):
+    service.stop_free_walk(env_mapping_service)
+    return "Robot stopped walking"
+
+@inject
 @app.route('/robot_status', methods = ['GET'])
 def get_robot_status(service: QuadrupedService):
     return service.get_arduino_status()
 
 @inject
 @app.route('/shutdown', methods = ['POST'])
-def shutdown_server(service: QuadrupedService):
+def shutdown_server(service: QuadrupedService, env_mapping_service: EnvMappingService):
     service.shut_down()
+    env_mapping_service.stop_scanning()
+    # cleanup (rest) all GPIO pins
+    GPIO.cleanup()
     func = request.environ.get('werkzeug.server.shutdown')
     if func is None:
         raise RuntimeError('Not running with the Werkzeug Server')
@@ -110,9 +129,35 @@ def on_connect():
 def on_connect():
   print ('Client disconnected!')
 
-# Setup Flask Injector, this has to happen AFTER routes are added
+
+def toggle_robot_walking_state(channel):
+    global robot_is_walking
+    if(robot_is_walking == False):
+        res = requests.post('http://localhost:5000/free_walk')
+        robot_is_walking = True
+    else:
+        if(robot_is_walking == True):
+            res = requests.post('http://localhost:5000/stop_free_walk')
+            robot_is_walking = False
+    setup_push_button_action()
+
+def setup_push_button_action():
+    GPIO.cleanup(pull_up_button_pin)
+    GPIO.cleanup(start_button_pin)
+    GPIO.setup(pull_up_button_pin,GPIO.OUT,initial=GPIO.HIGH)
+    GPIO.setup(start_button_pin,GPIO.IN)
+    GPIO.add_event_detect(start_button_pin, GPIO.RISING)
+    GPIO.add_event_callback(start_button_pin, toggle_robot_walking_state)
+    
+
 FlaskInjector(app=app, modules=[configure])
+GPIO.setmode(GPIO.BOARD)
+pull_up_button_pin = 36
+start_button_pin = 38
+robot_is_walking = False
+setup_push_button_action()
 
 
 if __name__ == '__main__':
+    # Setup Flask Injector, this has to happen AFTER routes are added
     app.run(debug=True, host='0.0.0.0')

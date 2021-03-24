@@ -70,19 +70,16 @@ class EnvMappingService:
     def scan(self):  
         while not self.stopLidarThread.is_set():
             # rplidar.RPLidarException: Incorrect descriptor starting bytes
-            rplidarException = False
+            time.sleep(0.05)
             try:
                 self.collect_scan_data()
             except RPLidarException:
-                rplidarException = True
-        
-            # if exception occured disconnects and try one more time...
-            if rplidarException:
+                # disconnects lidar and try again
                 self.lidar.disconnect()
-                self.lidar.connect()   
-                self.collect_scan_data()
-            time.sleep(0.05)
-            #self.lidar.clear_input()
+                self.lidar.connect() 
+                #self.lidar.clear_input()
+                continue
+                  
         self.lidar.stop()
             
 

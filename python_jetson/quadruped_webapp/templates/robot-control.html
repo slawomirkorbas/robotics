@@ -50,44 +50,55 @@
                 <div class="container justify-content-center"> 
 
                     <div class="row">
+                        <div class="col-3"></div>
                         <div class="col-3">
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/stop')">Home position</a>
+                            <button type="button" class="btn btn-success btn-lg  btn-block" onclick="request('/walk')" ><i class="fa fa-chevron-up"></i></button>
+                        </div>
+                        <div class="col-3"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-3">
+                            <button type="button" class="btn btn-success btn-lg  btn-block" onclick="request('/turn_left')" ><i class="fa fa-chevron-left"></i></button>
+                        </div>  
+                        <div class="col-3">
+                            <button type="button" class="btn btn-success btn-lg  btn-block" onclick="request('/stop')" ><i class="fa fa-android"></i></button>
                         </div>
                         <div class="col-3">
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/greet')">Greet</a>
+                            <button type="button" class="btn btn-success btn-lg  btn-block" onclick="request('/right')" ><i class="fa fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-3">
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/stop')"><i class="fa fa-home"></i> Home position</a>
                         </div>
                         <div class="col-3">
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/swing')">Swing</a>
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/greet')"><i class="fa fa-handshake-o"></i> Greet</a>
+                        </div>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/swing')"><i class="fa fa-grav"></i> Swing</a>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-3">
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/walk')">Walk forward</a>
+                            <a href="#" class="btn btn-success my-2 btn-lg btn-block mx-2" type="button" onclick="startScan()"><i class="fa fa-wifi"></i> Lidar scan</a>
                         </div>
                         <div class="col-3">
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/turn_right')">Turn right</a>
+                            <a href="#" class="btn btn-secondary my-2 btn-lg btn-block mx-2" type="button" onclick="stopScan()"> Stop scan</a>
                         </div>
                         <div class="col-3">
-                            <a href="#" class="btn btn-primary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/turn_left')">Turn left</a>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-3">
-                            <a href="#" class="btn btn-success my-2 btn-lg btn-block mx-2" type="button" onclick="startScan()">Scan environment</a>
-                        </div>
-                        <div class="col-3">
-                            <a href="#" class="btn btn-secondary my-2 btn-lg btn-block mx-2" type="button" onclick="stopScan()">Stop scan</a>
-                        </div>
-                        <div class="col-3">
-                            <a href="#" class="btn btn-warning my-2 btn-lg btn-block mx-2" type="button" onclick="request('/light_test')">LED test</a>
+                            <a href="#" class="btn btn-warning my-2 btn-lg btn-block mx-2" type="button" onclick="request('/light_test')"><i class="fa fa-lightbulb-o"></i> LED test</a>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-3">
-                            <a href="#" class="btn btn-success my-2 btn-lg btn-block mx-2" type="button" onclick="robotStatus()">Status</a>
+                            <a href="#" class="btn btn-success my-2 btn-lg btn-block mx-2" type="button" onclick="request('/free_walk')"><i class="fa fa-blind"></i> Free walk </a>
                         </div>
                         <div class="col-3">
-                            <a href="#" class="btn btn-danger my-2 btn-lg btn-block mx-2" type="button" onclick="request('/shutdown')">Shutdown</a>
+                            <a href="#" class="btn btn-secondary my-2 btn-lg btn-block mx-2" type="button" onclick="request('/stop_free_walk')">Stop free walk</a>
+                        </div>
+                        <div class="col-3">
+                            <a href="#" class="btn btn-danger my-2 btn-lg btn-block mx-2" type="button" onclick="request('/shutdown')"><i class="fa fa-unlink"></i> Shutdown</a>
                         </div>
                     </div>
                     <div class="row" id="lidar-plot">
@@ -150,7 +161,9 @@
         function stopScan() {
             //clearTimeout(collectLidarSamples);
             $.post('stop_scan', function(data) {
-
+                io.disconnect();
+                console.log("liar data websocket disconnected"); 
+                socket = null;   
             });
         }
 
