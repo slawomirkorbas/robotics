@@ -23,9 +23,10 @@ class EnvMappingService:
         #print(self.lidar.get_health())
         self.lidar.clear_input()
 
-    def start_collision_detection(self, collision_event):
+    def start_collision_detection(self, collision_event, path_free_event):
         if self.lidarThread is None:
             self.collision_event = collision_event
+            self.path_free_event  = path_free_event
             self.lidar_scan_ready_callback = self.collision_evaluation_callback
             self.lidarThread = Thread(target=self.scan)
             self.lidarThread.start()
@@ -43,8 +44,10 @@ class EnvMappingService:
            (front_right is not None and front_right < 300)):
                 # set collision event and let know other threads
                 self.collision_event.set()
+                self.path_free_event.clear()
         else:
             # clear collision event 
+            self.path_free_event.set()
             self.collision_event.clear()
 
     def start_scanning(self, lidar_scan_ready_callback):

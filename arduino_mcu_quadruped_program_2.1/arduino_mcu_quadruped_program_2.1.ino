@@ -92,12 +92,12 @@ class DynamixelServo
 
      boolean ping() {
       if(!shield.ping(id)) {
-           Serial.print("Failed to ping servo");
-           Serial.println(id);
+           //Serial.print("Failed to ping servo");
+           //Serial.println(id);
        }
        else {
-           Serial.print("Servo ping successfull: ");
-           Serial.println(id);
+           //Serial.print("Servo ping successfull: ");
+           //Serial.println(id);
        }
      }             
 
@@ -176,6 +176,10 @@ class Leg
         tibia = servos[2];
         this->inv = inverted;
      }
+
+     DynamixelServo* getHip(){return this->hip;};
+     DynamixelServo* getFemur(){return this->femur;};
+     DynamixelServo* getTibia(){return this->tibia;};
   
      void enablePositionMode() {
         for(int i=0; i<3; i++) {
@@ -291,21 +295,10 @@ class QuadrupedRobot {
         int bytes = Serial.available();
         if(bytes >= 5) 
         {
-          commandFromJetson = Serial.readStringUntil(TERMINATOR);
-          cleanUpInputBuffer(); // removes remaining data from input buffer
-          if(commandFromJetson.equals(CMD_STATUS)) {
-            String status = robotStatus() + TERMINATOR; 
-            Serial.print(status);
-            //Serial.flush();
-            commandFromJetson = CMD_EMPTY; //retuen an empty command so it doesn't stop robot from executing current order
-          }
-          else {
-            // confirm 
+            commandFromJetson = Serial.readStringUntil(TERMINATOR);
+            cleanUpInputBuffer(); // removes remaining data from input buffer
             String ackMsg = "New command accepted: " + commandFromJetson; 
-            Serial.print(ackMsg);
-            //Serial.flush();
             currenlyExecutedCommand = commandFromJetson;
-          }
         }
         return commandFromJetson;
     }
@@ -358,17 +351,37 @@ class QuadrupedRobot {
 
     void homePosition()
     {
-         leg_rL.moveTo(1, 14, 0);
-         leg_fL.moveTo(1, 14, 0);
-         leg_rR.moveTo(1, 14, 0);
-         leg_fR.moveTo(1, 14, 0);   
+         leg_rL.moveTo(1, 15, 0);
+         leg_fL.moveTo(1, 15, 0);
+         leg_rR.moveTo(1, 15, 0);
+         leg_fR.moveTo(1, 15, 0);   
     }
 
+
+    String greet(){
+      this->homePosition();
+      delay(1000);
+      
+          leg_rL.moveTo({5,11,0});
+          leg_rR.moveTo({5,11,0});
+          delay(1000);
+          leg_fL.moveTo({1,19,-2});
+          delay(1000);
+          leg_fR.getFemur()->setAngle(250);
+          leg_fR.getTibia()->setAngle(200);
+          delay(3000);
+          leg_fR.moveTo(1, 16, 0); 
+          leg_fL.moveTo(1, 16, 0); 
+          delay(2000);
+
+        return CMD_STOP;
+    }
+  
 
     String walk()
     {
        int wait = 200;
-       KeyFrame frames[] = { {-6,15,0}, {-6,15,0}, {3,12,0}, {6,15,0} }; 
+       KeyFrame frames[] = { {-5,15,0}, {-5,15,0}, {3,12,0}, {5,15,0} }; 
        MotionSequnce motionSeqence( frames, sizeof(frames)/sizeof(frames[0]) );
        int fL=2, fR=0, rL=0, rR=2; // starting frame indexes for each leg
        String nextCommand = CMD_EMPTY;
@@ -378,10 +391,39 @@ class QuadrupedRobot {
           leg_rL.moveTo(motionSeqence.next(rL));
           leg_fR.moveTo(motionSeqence.next(fR));
           leg_rR.moveTo(motionSeqence.next(rR));   
-
           nextCommand = getNextCommandFromJetson();
        }
        return nextCommand; 
+    }
+
+
+    String walk_2() {
+       int wait = 500;
+       String nextCommand = CMD_EMPTY;
+       while(nextCommand == CMD_EMPTY) {
+         delay(wait);
+         leg_fL.moveTo(3,12,0);
+         leg_rR.moveTo(3,12,0);
+         leg_fR.moveTo(1,15,0);
+         leg_rL.moveTo(1,15,0); 
+         delay(wait);
+         leg_fL.moveTo(5,15,0);
+         leg_rR.moveTo(5,15,0);
+         leg_fR.moveTo(-4,16,0);
+         leg_rL.moveTo(-4,16,0); 
+         delay(wait);
+         leg_fL.moveTo(1,15,0);
+         leg_rR.moveTo(1,15,0);
+         leg_fR.moveTo(3,12,0);
+         leg_rL.moveTo(3,12,0); 
+         delay(wait);
+         leg_fL.moveTo(-4,16,0);
+         leg_rR.moveTo(-4,16,0);
+         leg_fR.moveTo(5,15,0);
+         leg_rL.moveTo(5,15,0); 
+         nextCommand = getNextCommandFromJetson();
+       }
+       return nextCommand;
     }
 
     String turn(boolean right) {    
@@ -390,7 +432,7 @@ class QuadrupedRobot {
          int f_seq_len = sizeof(fr_f_01)/sizeof(fr_f_01[0]);
          MotionSequnce m_seq_f1( fr_f_01, f_seq_len );
          MotionSequnce m_seq_f2( fr_f_02, f_seq_len );
-         int wait = 200;
+         int wait = 150;
          int rr_01=0, rr_02=0, ff_01=0, ff_02=0; // starting frame indexes for each leg
          String nextCommand = CMD_EMPTY;
          while(nextCommand == CMD_EMPTY) {
@@ -409,7 +451,6 @@ class QuadrupedRobot {
 /** Create robot object **/
 QuadrupedRobot robot = QuadrupedRobot();
 
-
 void setup() {
   Serial.begin(115200, SERIAL_8N1);                             // For Uno, Nano, Mini, and Mega, use UART port of DYNAMIXEL Shield to debug.
   shield.begin(57600);                                    // Set Port baudrate to 57600bps. This has to match with DYNAMIXEL baudrate.
@@ -423,7 +464,9 @@ void setup() {
 String nextCmd = CMD_STOP;
 
 void loop() 
-{
+{ 
+  //robot.leg_rL.getFemur()->setAngle(180);
+  
   if(!nextCmd.equals(CMD_EMPTY)) 
   {
       if(CMD_STOP.equals(nextCmd))
@@ -432,7 +475,7 @@ void loop()
       }
       if(CMD_WALK_FORWARD.equals(nextCmd))
       {
-          nextCmd = robot.walk();
+          nextCmd = robot.walk_2();
       }
       if(CMD_TURN_LEFT.equals(nextCmd))
       {
@@ -441,8 +484,11 @@ void loop()
       if(CMD_TURN_RIGHT.equals(nextCmd))
       {
           nextCmd = robot.turn(false);
-      }
-      
+      }    
+      if(CMD_GREET.equals(nextCmd))
+      {
+          nextCmd = robot.greet();
+      }  
   }
 
 }
